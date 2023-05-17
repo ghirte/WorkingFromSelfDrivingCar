@@ -1,0 +1,985 @@
+---
+output:
+  pdf_document: default
+  html_document: default
+---
+
+
+---
+title: "Working from Self-driving Car - Results"
+author: "Georg Hirte"
+date: "May 08, 2023"
+output:
+  pdf_document:
+    keep_tex: yes
+    extra_dependencies: 
+      ["graphic", "xcolor","hyperref","natbib","eurosym"]
+    header-includes: 
+      \setcitestyle{authoryear,open={(},close={)}}
+  html_document:
+    df_print: paged
+    
+ 
+---
+
+```{r, include=FALSE}
+#install.packages("renv")
+#renv::init() 
+
+#renv::install("tinytex")
+#renv::install("devtools")
+#renv::install("tidyverse")
+#renv::install((c("colorspace", "corrr",  "cowplot",               "ggdark", "ggforce", "ggrepel", "ggridges", "ggsci", "ggtext", "ggthemes", "grid", "gridExtra", "patchwork",  "rcartocolor", "scico", "showtext", "shiny", "plotly", "highcharter", "echarts4r")))
+#renv::install("gdxdt")
+#renv::install("jtools")
+#renv::install("xfun")
+#renv::install("MASS")
+#renv::install("censReg")
+#renv::install("stargazer")
+library(devtools)
+devtools::install_version("kerdiest",  version = "1.2", repos = "https://cran.r-project.org",lib="./renv/library");
+require(devtools)
+devtools::install_version("mcsm", version = "1.0", repos = "https://cran.r-project.org",library="./renv/library");
+#renv::install("pastecs")
+#renv::install("truncnorm")
+#renv::install("crch")
+#renv::install("UnivRNG")
+#renv::install("dplyr")
+#renv::install("Hmisc")
+
+library("xfun");
+library("reshape2");
+library("tibble");
+library("tidyr");
+library("colorspace");
+library("ggrepel");
+library("ggsci");
+library("ggtext");
+library("cowplot");
+library("mcsm");
+library("pastecs");
+library("ggplot2");
+library("truncnorm");
+library("crch");
+library("UnivRNG");
+library("dplyr");
+library("Hmisc");
+library("xtable");     #needed for printing tex-tables
+
+## Needed for using gdx.files (from GAMS)
+#devtools::install_github("GAMS-dev/gdxrrw/gdxrrw",library="./renv/library")
+#devtools::install_github("leifeld/texReg",library="./renv/library")
+library(gdxrrw);    #needed to work with gdx files
+igdx("c:/GAMS/41/");
+
+library(jtools)     #for summary of regressions summ()
+
+
+## clear
+
+rm(list=ls())
+
+```
+
+```{r, include=FALSE, message=FALSE, warning=FALSE, results="hide", setup}
+knitr::opts_chunk$set(echo = TRUE)
+
+
+#RStudio 2021.09.0 Build 351
+# R version 4.1.2.
+```
+
+
+#1 Introduction
+
+This markdown file prepares the results of the Monte-Carlo Simulation to the 
+revised paper "Working form self-driving car" resubmitted to TRA. We use GAMS to perform the simulations.
+Here, we prepare the results for use in the paper.
+
+## Initialization
+
+
+```{r, include=FALSE, message=FALSE, warning=FALSE, result="hide"}
+
+
+``` 
+
+
+# Define function for read in data
+
+
+### Read parameter data
+```{r, include=FALSE, message=FALSE, warning=FALSE, results="hide"}
+mydataPARAM.frame <- function(gdxfile) {
+colnames <- c("id_i","id_c","id_r");
+id_r <- rgdx.set(gdxfile,"ll",names = colnames,compress=TRUE,ts=TRUE)
+id_c <- rgdx.set(gdxfile,"ctr",names = colnames,compress=TRUE,ts=TRUE)
+id_i <- rgdx.set(gdxfile,"i",names = colnames,compress=TRUE,ts=TRUE)
+# parameters varied in MC simulation - is the same for each 
+adistrib.frame <- rgdx.param(gdxfile,"zp_adistrib",names = c(colnames[2],colnames[3],"adistrib"),
+                             compress=TRUE,ts=TRUE,squeeze=FALSE)
+eff.frame <- rgdx.param(gdxfile,"zp_aeff",names = c(colnames[2],colnames[3],"eff"),
+                        compress=TRUE,ts=TRUE,squeeze=FALSE)
+#b.frame <- rgdx.param(gdxfile,"calc_pb",names = c(colnames[2],colnames[3],"b"),
+#                           compress=TRUE,ts=TRUE,squeeze=FALSE)
+beta.frame <- rgdx.param(gdxfile,"zp_beta",names = c(colnames[2],colnames[3],"beta"),
+                         compress=TRUE,ts=TRUE,squeeze=FALSE)
+dA.frame <- rgdx.param(gdxfile,"zp_dA",names = c(colnames[2],colnames[3],"dA"),
+                       compress=TRUE,ts=TRUE,squeeze=FALSE)
+dB.frame <- rgdx.param(gdxfile,"zp_dB",names = c(colnames[2],colnames[3],"dB"),
+                       compress=TRUE,ts=TRUE,squeeze=FALSE)
+gh.frame <- rgdx.param(gdxfile,"zp_gh",names = c(colnames[2],colnames[3],"gh"),
+                       compress=TRUE,ts=TRUE,squeeze=FALSE)
+gm.frame <- rgdx.param(gdxfile,"zp_gm",names = c(colnames[2],colnames[3],"gm"),
+                       compress=TRUE,ts=TRUE,squeeze=FALSE)
+gx.frame <- rgdx.param(gdxfile,"zp_gx",names = c(colnames[2],colnames[3],"gx"),
+                       compress=TRUE,ts=TRUE,squeeze=FALSE)
+sp.frame <- rgdx.param(gdxfile,"zp_sp",names = c(colnames[2],colnames[3],"sp"),
+                       compress=TRUE,ts=TRUE,squeeze=FALSE)
+rmonth.frame <- rgdx.param(gdxfile,"zp_rmonth",names = c(colnames[2],colnames[3],"rmonth"),
+                           compress=TRUE,ts=TRUE,squeeze=FALSE)
+sqmemployee.frame <- rgdx.param(gdxfile,"zp_sqmemployee",names = c(colnames[2],colnames[3],"sqmemployee"),
+                                compress=TRUE,ts=TRUE,squeeze=FALSE)
+wage.frame <- rgdx.param(gdxfile,"zp_wage",names = c(colnames[2],colnames[3],"wage"),
+                         compress=TRUE,ts=TRUE,squeeze=FALSE)
+xbar.frame <- rgdx.param(gdxfile,"zp_xbar",names = c(colnames[2],colnames[3],"xbar"),
+                         compress=TRUE,ts=TRUE,squeeze=FALSE)
+hours.frame <- rgdx.param(gdxfile,"zparam_Hwork",names = c(colnames[2],"hours"),
+                          compress=TRUE,ts=TRUE,squeeze=FALSE)
+tb.frame <- rgdx.param(gdxfile,"zp_tb",names = c(colnames[2],colnames[3],"tb"),
+                       compress=TRUE,ts=TRUE,squeeze=FALSE)
+rho.frame <- rgdx.param(gdxfile,"zp_rho",names = c(colnames[2],colnames[3],"rho"),
+                        compress=TRUE,ts=TRUE,squeeze=FALSE)
+tauw.frame <- rgdx.param(gdxfile,"zp_tauw",names = c(colnames[2],colnames[3],"tauw"),
+                         compress=TRUE,ts=TRUE,squeeze=FALSE)
+tauf.frame <- rgdx.param(gdxfile,"zp_tauf",names = c(colnames[2],colnames[3],"tauf"),
+                         compress=TRUE,ts=TRUE,squeeze=FALSE)
+taus.frame <- rgdx.param(gdxfile,"zp_taus",names = c(colnames[2],colnames[3],"taus"),
+                         compress=TRUE,ts=TRUE,squeeze=FALSE)
+taud.frame <- rgdx.param(gdxfile,"zp_taud",names = c(colnames[2],colnames[3],"taud"),
+                         compress=TRUE,ts=TRUE,squeeze=FALSE)
+taup.frame <- rgdx.param(gdxfile,"zp_taup",names = c(colnames[2],colnames[3],"taup"),
+                         compress=TRUE,ts=TRUE,squeeze=FALSE)
+tauq.frame <- rgdx.param(gdxfile,"zp_tauq",names = c(colnames[2],colnames[3],"tauq"),
+                         compress=TRUE,ts=TRUE,squeeze=FALSE)
+tauc.frame <- rgdx.param(gdxfile,"zp_tauc",names = c(colnames[2],colnames[3],"tauc"),
+                         compress=TRUE,ts=TRUE,squeeze=FALSE)
+FrameParam.frame <- merge(adistrib.frame,eff.frame,by=c("id_r", "id_c"))
+FrameParam.frame <- merge(FrameParam.frame,beta.frame,by=c("id_r", "id_c"))
+FrameParam.frame <- merge(FrameParam.frame,dA.frame,by=c("id_r", "id_c"))
+FrameParam.frame <- merge(FrameParam.frame,dB.frame,by=c("id_r", "id_c"))
+FrameParam.frame <- merge(FrameParam.frame,gh.frame,by=c("id_r", "id_c"))
+FrameParam.frame <- merge(FrameParam.frame,gm.frame,by=c("id_r", "id_c"))
+FrameParam.frame <- merge(FrameParam.frame,gx.frame,by=c("id_r", "id_c"))
+FrameParam.frame <- merge(FrameParam.frame,sp.frame,by=c("id_r", "id_c"))
+FrameParam.frame <- merge(FrameParam.frame,rmonth.frame,by=c("id_r", "id_c"))
+FrameParam.frame <- merge(FrameParam.frame,sqmemployee.frame,by=c("id_r", "id_c"))
+FrameParam.frame <- merge(FrameParam.frame,wage.frame,by=c("id_r", "id_c"))
+FrameParam.frame <- merge(FrameParam.frame,xbar.frame,by=c("id_r", "id_c"))
+#FrameParam.frame <- merge(FrameParam.frame,y.frame,by=c("id_r", "id_c"))
+FrameParam.frame <- merge(FrameParam.frame,tb.frame,by=c("id_r", "id_c"))
+FrameParam.frame <- merge(FrameParam.frame,rho.frame,by=c("id_r", "id_c"))
+FrameParam.frame <- merge(FrameParam.frame,tauw.frame,by=c("id_r", "id_c"))
+FrameParam.frame <- merge(FrameParam.frame,tauf.frame,by=c("id_r", "id_c"))
+FrameParam.frame <- merge(FrameParam.frame,taus.frame,by=c("id_r", "id_c"))
+FrameParam.frame <- merge(FrameParam.frame,taud.frame,by=c("id_r", "id_c"))
+FrameParam.frame <- merge(FrameParam.frame,taup.frame,by=c("id_r", "id_c"))
+FrameParam.frame <- merge(FrameParam.frame,tauq.frame,by=c("id_r", "id_c"))
+FrameParam.frame <- merge(FrameParam.frame,tauc.frame,by=c("id_r", "id_c"))
+FrameParam.frame <- merge(FrameParam.frame,hours.frame,by=c("id_c"))
+return(FrameParam.frame)
+}
+```
+
+
+
+
+
+
+
+### function to read variables with two sets (not "a" or "b")
+```{r, message=FALSE, warning=FALSE}
+mydataVARcr.frame <- function(gdxfile) {
+  colnames <- c("id_i","id_c","id_r");
+  id_r <- rgdx.set(gdxfile,"ll",names = colnames,compress=TRUE,ts=TRUE)
+  id_c <- rgdx.set(gdxfile,"ctr",names = colnames,compress=TRUE,ts=TRUE)
+  id_i <- rgdx.set(gdxfile,"i",names = colnames,compress=TRUE,ts=TRUE)
+  alpha.frame <- rgdx.param(gdxfile,"calc_alpha",
+                            names = c(colnames[2],colnames[3],"alpha"),
+                            compress=TRUE,ts=TRUE,squeeze=FALSE)
+  epsilon.frame <- rgdx.param(gdxfile,"calc_epsilon",
+                              names = c(colnames[2],colnames[3],"epsilon"),
+                              compress=TRUE,ts=TRUE,squeeze=FALSE)
+  vc.frame <- rgdx.param(gdxfile,"calc_hvc",
+                         names = c(colnames[2],colnames[3],"vc"),
+                         compress=TRUE,ts=TRUE,squeeze=FALSE)
+  indVx.frame <- rgdx.param(gdxfile,"calc_indVx",
+                            names = c(colnames[2],colnames[3],"indVx"),
+                            compress=TRUE,ts=TRUE,squeeze=FALSE)
+  Ubar.frame <- rgdx.param(gdxfile,"calc_Ubar",
+                           names = c(colnames[2],colnames[3],"Ubar"),
+                           compress=TRUE,ts=TRUE,squeeze=FALSE)
+  wBstar.frame <- rgdx.param(gdxfile,"calc_wBstar",
+                             names = c(colnames[2],colnames[3],"wBstar"),
+                             compress=TRUE,ts=TRUE,squeeze=FALSE)
+  xv.frame <- rgdx.param(gdxfile,"calc_xv",
+                         names = c(colnames[2],colnames[3],"xv"),
+                         compress=TRUE,ts=TRUE,squeeze=FALSE)
+  pb.frame <- rgdx.param(gdxfile,"calc_pb",
+                         names = c(colnames[2],colnames[3],"pb"),
+                         compress=TRUE,ts=TRUE,squeeze=FALSE)
+  chgmargcost.frame <- rgdx.param(gdxfile,"firm_chg_marg_costs",names = c(colnames[2],colnames[3],"chgmargcosts"),compress=TRUE,ts=TRUE,squeeze=FALSE)
+  chgmargprofit.frame <- rgdx.param(gdxfile,"firm_chg_marg_profit",names = c(colnames[2],colnames[3],"chgmargprofit"),compress=TRUE,ts=TRUE,squeeze=FALSE)
+  chgmargprod.frame <- rgdx.param(gdxfile,"firm_chg_margprod",names = c(colnames[2],colnames[3],"chgmargprod"),compress=TRUE,ts=TRUE,squeeze=FALSE)
+  costA.frame <- rgdx.param(gdxfile,"firm_marg_costsA",
+                            names = c(colnames[2],colnames[3],"costA"),
+                            compress=TRUE,ts=TRUE,squeeze=FALSE)
+  costB.frame <- rgdx.param(gdxfile,"firm_marg_costsB",
+                            names = c(colnames[2],colnames[3],"costB"),
+                            compress=TRUE,ts=TRUE,squeeze=FALSE)
+  Deltac.frame <- rgdx.param(gdxfile,"firm_marg_Deltac",
+                             names = c(colnames[2],colnames[3],"Deltac"),
+                             compress=TRUE,ts=TRUE,squeeze=FALSE)
+  Deltafc.frame <- rgdx.param(gdxfile,"firm_marg_Deltafc",
+                              names = c(colnames[2],colnames[3],"Deltafc"),
+                              compress=TRUE,ts=TRUE,squeeze=FALSE)
+  Deltamc.frame <- rgdx.param(gdxfile,"firm_marg_Deltamc",
+                              names = c(colnames[2],colnames[3],"Deltamc"),
+                              compress=TRUE,ts=TRUE,squeeze=FALSE)
+
+  FrameVARrc.frame <- merge(alpha.frame,epsilon.frame,by=c("id_r", "id_c"))
+  FrameVARrc.frame <- merge(FrameVARrc.frame,vc.frame,by=c("id_r", "id_c"))
+  FrameVARrc.frame <- merge(FrameVARrc.frame,indVx.frame,by=c("id_r", "id_c"))
+  FrameVARrc.frame <- merge(FrameVARrc.frame,Ubar.frame,by=c("id_r", "id_c"))
+  FrameVARrc.frame <- merge(FrameVARrc.frame,wBstar.frame,by=c("id_r", "id_c"))
+  FrameVARrc.frame <- merge(FrameVARrc.frame,xv.frame,by=c("id_r", "id_c"))
+  FrameVARrc.frame <- merge(FrameVARrc.frame,pb.frame,by=c("id_r", "id_c"))
+  FrameVARrc.frame <- merge(FrameVARrc.frame,costA.frame,by=c("id_r", "id_c"))
+  FrameVARrc.frame <- merge(FrameVARrc.frame,costB.frame,by=c("id_r", "id_c"))
+  FrameVARrc.frame <- merge(FrameVARrc.frame,Deltac.frame,by=c("id_r", "id_c"))
+  FrameVARrc.frame <- merge(FrameVARrc.frame,Deltafc.frame,by=c("id_r", "id_c"))
+  FrameVARrc.frame <- merge(FrameVARrc.frame,Deltamc.frame,by=c("id_r", "id_c"))
+  FrameVARrc.frame <- merge(FrameVARrc.frame,chgmargcost.frame,by=c("id_r", "id_c"))
+  FrameVARrc.frame <- merge(FrameVARrc.frame,chgmargprofit.frame,by=c("id_r", "id_c"))
+  FrameVARrc.frame <- merge(FrameVARrc.frame,chgmargprod.frame,by=c("id_r", "id_c"))
+  return(FrameVARrc.frame)
+}
+
+
+
+
+### parameters (variables in GAMS simulation) with id_i =a" and "b"
+mydataVARab.frame <- function(gdxfile) {
+  colnames <- c("id_i","id_c","id_r");
+  id_r <- rgdx.set(gdxfile,"ll",names = colnames,compress=TRUE,ts=TRUE)
+  id_c <- rgdx.set(gdxfile,"ctr",names = colnames,compress=TRUE,ts=TRUE)
+  id_i <- rgdx.set(gdxfile,"i",names = colnames,compress=TRUE,ts=TRUE)
+  effort.frame <- rgdx.param(gdxfile,"calc_effort",
+                        names = c(colnames[1],colnames[2],colnames[3],"effort"),
+                        compress=TRUE,ts=TRUE,squeeze=FALSE)
+  ell.frame <- rgdx.param(gdxfile,"calc_ell",
+                          names = c(colnames[1],colnames[2],colnames[3],"ell"),
+                          compress=TRUE,ts=TRUE,squeeze=FALSE)
+  income.frame <- rgdx.param(gdxfile,"calc_income",
+                  names = c(colnames[1],colnames[2],colnames[3],"income"),
+                  compress=TRUE,ts=TRUE,squeeze=FALSE)
+  incomeB.frame <- as.data.frame(income.frame[effort.frame$id_i =="b" | income.frame$id_i =="b",])
+  indV.frame <- rgdx.param(gdxfile,"calc_indV",
+                           names = c(colnames[1],colnames[2],colnames[3],"indV"),
+                           compress=TRUE,ts=TRUE,squeeze=FALSE)
+  v.frame <- rgdx.param(gdxfile,"calc_v",
+                        names = c(colnames[1],colnames[2],colnames[3],"v"),
+                        compress=TRUE,ts=TRUE,squeeze=FALSE)
+  vo.frame <- rgdx.param(gdxfile,"calc_vo",
+                         names = c(colnames[1],colnames[2],colnames[3],"vo"),
+                         compress=TRUE,ts=TRUE,squeeze=FALSE)
+  wB.frame <- rgdx.param(gdxfile,"calc_wB",
+                         names = c(colnames[1],colnames[2],colnames[3],"wB"),
+                         compress=TRUE,ts=TRUE,squeeze=FALSE)
+  xB.frame <- rgdx.param(gdxfile,"calc_xB",
+                         names = c(colnames[1],colnames[2],colnames[3],"xB"),
+                         compress=TRUE,ts=TRUE,squeeze=FALSE)
+  z.frame <- rgdx.param(gdxfile,"calc_z",
+                        names = c(colnames[1],colnames[2],colnames[3],"z"),
+                        compress=TRUE,ts=TRUE,squeeze=FALSE)
+  tkm.frame <- rgdx.param(gdxfile,"calc_tkm",
+                          names = c(colnames[1],colnames[2],colnames[3],"tkm"),
+                          compress=TRUE,ts=TRUE,squeeze=FALSE)
+  expwage.frame <- rgdx.param(gdxfile,"firm_avg_expwage",
+                      names = c(colnames[1],colnames[2],colnames[3],"expwage"),
+                              compress=TRUE,ts=TRUE,squeeze=FALSE)
+#  avgsqm.frame <- rgdx.param(gdxfile,"firm_avg_sqm",
+#  names = c(colnames[1],colnames[2],colnames[3],"avgsqm"),
+#  compress=TRUE,ts=TRUE,squeeze=FALSE)
+  firmlabord.frame <- rgdx.param(gdxfile,"firm_labor_demand",
+                    names = c(colnames[1],colnames[2],colnames[3],"firmlabord"),
+                                 compress=TRUE,ts=TRUE,squeeze=FALSE)
+#  firmsqm.frame <- rgdx.param(gdxfile,"firm_sqm",
+#  names = c(colnames[1],colnames[2],colnames[3],"firmsqm"),
+# compress=TRUE,ts=TRUE,squeeze=FALSE)
+  firmproduction.frame <- rgdx.param(gdxfile,"firm_production",
+            names = c(colnames[1],colnames[2],colnames[3],"firmproduction"),
+                                     compress=TRUE,ts=TRUE,squeeze=FALSE)
+  margprod.frame <- rgdx.param(gdxfile,"firm_margprod",
+                      names = c(colnames[1],colnames[2],colnames[3],"margprod"),
+                               compress=TRUE,ts=TRUE,squeeze=FALSE)
+  netprofits.frame <- rgdx.param(gdxfile,"firm_NetProfits",
+        names = c(colnames[1],colnames[2],colnames[3],"netprofits"),
+                                 compress=TRUE,ts=TRUE,squeeze=FALSE)
+  worker_travelcost.frame <- rgdx.param(gdxfile,"zemployee_travelcost",
+            names = c(colnames[1],colnames[2],colnames[3],"worker_travelcost"),
+            compress=TRUE,ts=TRUE,squeeze=FALSE)
+  worker_traveltime.frame <- rgdx.param(gdxfile,"zemployee_traveltime",
+            names = c(colnames[1],colnames[2],colnames[3],"worker_traveltime"),
+            compress=TRUE,ts=TRUE,squeeze=FALSE)
+  VOT.frame <- rgdx.param(gdxfile,"zemployee_VOT",
+                          names = c(colnames[1],colnames[2],colnames[3],"VOT"),
+                          compress=TRUE,ts=TRUE,squeeze=FALSE)
+  # generate dataframe with all variables with "a" and "b"
+  FrameVARab.frame <- merge(effort.frame,ell.frame,by=c("id_i","id_r", "id_c"))
+  FrameVARab.frame <- merge(FrameVARab.frame,income.frame,by=c("id_i","id_r", "id_c"))
+  FrameVARab.frame <- merge(FrameVARab.frame,incomeB.frame,by=c("id_i","id_r", "id_c"))
+  FrameVARab.frame <- merge(FrameVARab.frame,indV.frame,by=c("id_i","id_r", "id_c"))
+  FrameVARab.frame <- merge(FrameVARab.frame,v.frame,by=c("id_i","id_r", "id_c"))
+  FrameVARab.frame <- merge(FrameVARab.frame,vo.frame,by=c("id_i","id_r", "id_c"))
+  FrameVARab.frame <- merge(FrameVARab.frame,wB.frame,by=c("id_i","id_r", "id_c"))
+  FrameVARab.frame <- merge(FrameVARab.frame,xB.frame,
+                            by=c("id_i","id_r", "id_c"))
+  FrameVARab.frame <- merge(FrameVARab.frame,z.frame,
+                            by=c("id_i","id_r", "id_c"))
+  FrameVARab.frame <- merge(FrameVARab.frame,tkm.frame,
+                            by=c("id_i","id_r", "id_c"))
+  FrameVARab.frame <- merge(FrameVARab.frame,expwage.frame,
+                            by=c("id_i","id_r", "id_c"))
+#  FrameVARab.frame <- merge(FrameVARab.frame,avgsqm.frame,by=c("id_i","id_r", "id_c"))
+  FrameVARab.frame <- merge(FrameVARab.frame,firmlabord.frame,
+                            by=c("id_i","id_r", "id_c"))
+#  FrameVARab.frame <- merge(FrameVARab.frame,firmsqm.frame,by=c("id_i","id_r", "id_c"))
+  FrameVARab.frame <- merge(FrameVARab.frame,firmproduction.frame,
+                            by=c("id_i","id_r", "id_c"))
+  FrameVARab.frame <- merge(FrameVARab.frame,margprod.frame,
+                            by=c("id_i","id_r", "id_c"))
+  FrameVARab.frame <- merge(FrameVARab.frame,netprofits.frame,
+                            by=c("id_i","id_r", "id_c"))
+  FrameVARab.frame <- merge(FrameVARab.frame,worker_travelcost.frame,
+                            by=c("id_i","id_r", "id_c"))
+  FrameVARab.frame <- merge(FrameVARab.frame,worker_traveltime.frame,
+                            by=c("id_i","id_r", "id_c"))
+  FrameVARab.frame <- merge(FrameVARab.frame,VOT.frame,
+                            by=c("id_i","id_r", "id_c"))
+  return(FrameVARab.frame)
+} 
+
+### df1.frame
+df1.frame <- function(gdxfile) {
+  MobileVARcr.frame <- mydataVARcr.frame(gdxfile)
+  MobilePARAM.frame <- mydataPARAM.frame(gdxfile)
+  MobileVARab.frame <- mydataVARab.frame(gdxfile)
+  # generate file with only contract 'b'
+  Mobileonlyb.frame <- 
+    as.data.frame(MobileVARab.frame[MobileVARab.frame$id_i =="a" | MobileVARab.frame$id_i =="b",])
+  Mobileb.frame <- merge(MobilePARAM.frame, MobileVARcr.frame, 
+                         by=c("id_r", "id_c"))
+  Mobileb.frame <- merge(Mobileb.frame, Mobileonlyb.frame, 
+                         by=c("id_r", "id_c"))
+  # produce data.frame for table
+  df1.frame <- Mobileb.frame
+  return(df1.frame)
+}
+
+#gdxfile = "OutMobileWork_eff.gdx"
+#nameparam = "eff"
+#nameidc = "DE"
+dfprintidc <- function(gdxfile,nameparam,nameidc) {
+  df.frame <- df1.frame(gdxfile)
+  df2.frame <- select(filter(df.frame, id_c == nameidc), 
+                      c(id_r,id_c,all_of(nameparam),
+                        alpha,v,vc,vo,xB,wage,wB,pb,Deltac))
+  df2.frame <- df2.frame %>% arrange(id_r) #sort data
+  xtab1 <- xtable(df2.frame[1:10, 3:10])
+  text0 <- nameparam
+  text1 = "Parameter"
+  text2 <- nameidc
+  text1 <- paste(text1,text0,text2)
+  textn0 = "./DataParam"
+  textn1 <- nameidc
+  textn2 = ".txt"
+  textn <- paste(textn0,text0,textn1,textn2,sep="")
+  textl1 <- nameidc
+  textl01 = " "
+  textl0 = "tab: "
+  textlab <- paste(textl0,text0,textl01,textl1,sep="")
+  pprint <- print(xtable(xtab1, caption = text1, label=textlab)
+                  ,floating = TRUE, table.placement = "htb",
+                  size = "footnotesize", latex.environments = "center", 
+                  math.style.negative = "TRUE", file = textn)
+  return(pprint)
+}
+
+
+
+# print elasticites in Tex table Germany
+#c("eff","beta","sqmemployee","rmonth","dB","dA","sp","xbar","gm","gx","gh","tb","wage")
+#gdxfile = "OutMobileWork_eff.gdx"
+#nameparam = "eff"
+#nameidc = "DE"
+dfprintElast <- function(gdxfile,nameparam,nameidc) {
+  df.frame <- df1.frame(gdxfile)
+  df2.frame <- select(filter(df.frame, id_c == nameidc), 
+                      c(id_r,id_c,all_of(nameparam), alpha,v,vc,vo,xB))
+  df2.frame <- df2.frame %>% arrange(id_r) #sort data
+  df2elast.frame <- data.frame(matrix(ncol = 8, nrow = 10))
+  colnames(df2elast.frame) <- c("id_r","id_c",nameparam,"e_alpha","e_v","e_vc",
+                                "e_vo", "e_xB")
+  df2elast.frame <- data.frame(matrix(vector(),10,8,dimnames=list(c(),
+              c("id_r","id_c",nameparam,"e_alpha","e_v","e_vc","e_vo", "e_xB"))),
+                               stringsAsFactors=F)
+  df2elast.frame$id_r <-  df2.frame$id_r 
+  df2elast.frame$id_c <-  df2.frame$id_c 
+  df2elast.frame[,3] <-  df2.frame[,3]
+  for(i in 2:10){ 
+    df2elast.frame$e_alpha[i] = 
+      ((df2.frame$alpha[i]-df2.frame$alpha[i-1])/df2.frame$alpha[i-1])/
+      ((df2.frame[i,3]-df2.frame[i-1,3])/df2.frame[i-1,3])
+    df2elast.frame$e_v[i] = 
+      ((df2.frame$v[i]-df2.frame$v[i-1])/df2.frame$v[i-1])/
+      ((df2.frame[i,3]-df2.frame[i-1,3])/df2.frame[i-1,3])
+    df2elast.frame$e_vc[i] = 
+      ((df2.frame$vc[i]-df2.frame$vc[i-1])/df2.frame$vc[i-1])/
+      ((df2.frame[i,3]-df2.frame[i-1,3])/df2.frame[i-1,3])
+    df2elast.frame$e_vo[i] = 
+      ((df2.frame$vo[i]-df2.frame$vo[i-1])/df2.frame$vo[i-1])/
+      ((df2.frame[i,3]-df2.frame[i-1,3])/df2.frame[i-1,3])
+    df2elast.frame$e_xB[i] = 
+      ((df2.frame$xB[i]-df2.frame$xB[i-1])/df2.frame$xB[i-1])/
+      ((df2.frame[i,3]-df2.frame[i-1,3])/df2.frame[i-1,3])
+  }
+  str(df2elast.frame)
+  # add median
+  df2elast.frame <- rbind(df2elast.frame,c("median",nameidc,nameparam,
+                          median(df2elast.frame$e_alpha,sort=TRUE,na.rm=TRUE),
+                          median(df2elast.frame$e_v,sort=TRUE,na.rm=TRUE),
+                          median(df2elast.frame$e_vc,sort=TRUE,na.rm=TRUE),
+                          median(df2elast.frame$e_vo,sort=TRUE,na.rm=TRUE),
+                          median(df2elast.frame$e_xB,sort=TRUE,na.rm=TRUE)))
+
+# transform to numeric
+  df2elast.frame$e_alpha <- as.numeric(df2elast.frame$e_alpha)
+  df2elast.frame$e_v <- as.numeric(df2elast.frame$e_v)
+  df2elast.frame$e_vc <- as.numeric(df2elast.frame$e_vc)
+  df2elast.frame$e_vo <- as.numeric(df2elast.frame$e_vo)
+  df2elast.frame$e_xB <- as.numeric(df2elast.frame$e_xB)
+
+  number_hook <- function(x) {
+  ifelse(abs(x) < 100 & abs(x) > 0.000, 
+         prettyNum(x, small.mark = ",", digits = 2), trunc(x))
+  }
+  xtable :: xtable(dplyr::mutate_if(df2elast.frame, is.numeric, number_hook))
+  xtab1 <- xtable(dplyr::mutate_if(df2elast.frame, is.numeric, number_hook))
+  #xtab1 <- xtable(df2elast.frame[2:10, 1:8],digits=2)
+  text0 <- nameparam
+  text1 = "Parameter "
+  text2 <- nameidc
+  text1 <- paste(text1,text0,text2)
+  textn0 = "./ParamElast"
+  textn1 <- nameidc
+  textn2 = ".txt"
+  textn <- paste(textn0,text0,textn1,textn2,sep="")
+  textl1 = " "
+  textl2 <- nameidc
+  textl0 = "tab: "
+  textlab <- paste(textl0,text0,textl1,sep="")
+  pprintelast <- print(xtable(xtab1, caption = text1, label=textlab,digits=2)
+                  ,floating = TRUE, table.placement = "htb",
+                  size = "footnotesize", latex.environments = "center", 
+                  math.style.negative = "TRUE", file = textn)
+  return(pprintelast)
+}
+
+```
+
+
+
+### UDF: calcprob
+function calculate probabilities
+* Monte Carlo Table 
+*  calculate all variables as between 0-1 (shares)
+* sort them, calculate the empirical cumulative density function
+* and print probabilities
+
+
+```{r, include=FALSE, message=FALSE, warning=FALSE, results="hide"}
+calcprob <- function(namevar,digit,check1) {
+  if (check1 == 1) {
+  sorta01 <- namevar[!namevar > 100]
+  }
+ 
+  proba01 <- ecdf(sorta01)
+  var01 <- c(round(proba01(0),digit),round(proba01(0.1),digit), 
+             round(proba01(0.2),digit), 
+  round(proba01(0.25),digit), round(proba01(0.3),digit),
+  round(proba01(0.4),digit), 
+  round(proba01(0.5),digit), round(proba01(0.6),digit),round(proba01(0.7),digit),
+  round(proba01(0.75),digit), round(proba01(0.8),digit),
+  round(proba01(0.9),digit),round(proba01(1.0),digit), 
+  round(median(sorta01),digit), 
+  round(mean(sorta01),digit) )
+  return(var01)
+}
+```
+
+Function to generade ECDF
+
+```{r, include=FALSE, message=FALSE, warning=FALSE, results="hide"}
+calcpro2 <- function(namevar,digit,check1) {
+  
+ #namevar<- dfmcUS2.frame$alpha
+ #digit <- 4
+ #check1 <- 1
+  if (check1 == 1) {
+  sorta02 <- namevar[!namevar > 12]
+  }
+  
+  vec2 = seq(0,1, by=0.005)
+  #vec2
+  proba02 <- ecdf(sorta02)
+  #proba02
+  var02 <- c(round(proba02(vec2),digit))
+  #var02
+  return(var02)
+}
+```
+
+
+### UDF: dfmcframe
+generate data frame from Monte Carlo results
+```{r, include=FALSE, message=FALSE, warning=FALSE, results="hide"}
+dfmcframe <- function(gdxfile,nameparam, nameidc,asupport) {
+  df.frame <- df1.frame(gdxfile)  # call UDF to get data
+  # calculate shares
+  df.frame$share_v <- df.frame$v / df.frame$hours
+  df.frame$share_vc <- df.frame$vc / df.frame$hours
+  df.frame$share_vo <- df.frame$vo / df.frame$hours
+  df.frame$share_x <- df.frame$xB / df.frame$xbar
+  df.frame$share_xo <- df.frame$xv / df.frame$xbar
+  # next: share of chosen distances for commuting and WFC substituting WFO 
+  # to initial distance xbar
+  # not so useful since it neglects WFC-distance that substites commuting. 
+  # We drop it when printing
+  df.frame$share_xsum <- df.frame$share_x + df.frame$share_xo
+  summary(df.frame)
+  # add shares to dataframe
+  if (nameidc =="DE") {
+    dfmc1.frame <- select(filter(df.frame, id_c == "DE"), 
+                          c(id_r,id_c,adistrib,alpha,share_v,share_vc,share_vo,
+                          share_xsum,share_x,share_xo,v,vc,vo,xbar,xB,xv,wage,wB,pb,
+                            Deltac,Deltac,tkm,expwage,hours,tauw,tauf,taus,taud,
+                            tauc,taup,tauq,rho,eff,beta,dA,dB,
+                                              gm,gx,gh,rmonth,sp,sqmemployee,tb))
+  } else {
+    dfmc1.frame <- select(filter(df.frame, id_c == "US"), 
+                          c(id_r,id_c,adistrib,alpha,share_v,share_vc,share_vo,
+                          share_xsum,share_x,share_xo,v,vc,vo,xbar,xB,xv,wage,wB,pb,
+                            Deltac,Deltac,tkm,expwage,hours,tauw,tauf,taus,taud,
+                                    tauc,taup,tauq,rho,eff,beta,dA,dB,
+                                        gm,gx,gh,rmonth,sp,sqmemployee,tb))
+  }
+  return(dfmc1.frame)
+  
+}
+```
+
+
+
+
+### UDF dfprintMonteCarlo
+print latex table for MC
+```{r dfprintMonteCarlo, message=FALSE, warning=FALSE, results="hide"}
+dfprintMonteCarlo <- function(gdxfile,nameparam, nameidc,asupport) {
+    #dfmc.frame <- dfmc.frame %>% arrange(id_r) #sort data
+  # prepare data for output table
+  dfmc.frame <- dfmcframe(gdxfile,nameparam, nameidc,asupport)
+  value <- c(0,0.1,0.2,0.25, 0.3,0.4,0.5,0.6,0.7,0.75,0.8,0.9,1,"median","mean")
+  digit = 4
+  namevar <- dfmc.frame$alpha
+  alpha <- calcprob(namevar,digit,1)  
+  # call function to calculate probabilities and cumulative density ecdf
+  namevar <- dfmc.frame$share_v
+  sv <- calcprob(namevar,digit,1)
+  namevar <- dfmc.frame$share_vc
+  svc <- calcprob(namevar,digit,1)
+  namevar <- dfmc.frame$share_vo
+  svo <- calcprob(namevar,digit,1)
+  namevar <- dfmc.frame$share_xsum
+  sxsum <- calcprob(namevar,digit,1) 
+  namevar <- dfmc.frame$share_x
+  sx <- calcprob(namevar,digit,1)
+  namevar <- dfmc.frame$share_xo
+  sxo <- calcprob(namevar,digit,1)
+
+  
+  #xtab1.frame <- data.frame(value,alpha,sv,svc,svo,sxsum,sx,sxo)
+  xtab1.frame <- data.frame(value,alpha,sv,svc,svo,sx,sxo)
+  summary(xtab1.frame)
+  xtab1 <- xtable(xtab1.frame, rownames=F,)
+
+  if (nameidc =="DE") {
+    text1 <- "Monte-Carlo Simulation: DE, ["
+  } else {
+    text1 <- "Monte-Carlo Simulation: US, ["
+  }
+  text2 <- asupport
+  text3 <- "]"
+  text1 <- paste(text1,text2,text3)
+  if (nameidc =="DE") {
+    textn0 <- "./DataMC_DE.txt"
+  } else {
+    textn0 <- "./DataMC_US.txt"
+  }
+  #textn <- paste(textn0)
+  pprintMC <- print(xtable(xtab1,  caption = text1), include.rownames=F 
+                  ,floating = TRUE, latex.environments = "center", file = textn0)
+  return(pprintMC)
+}
+```
+
+# Evaluate results
+
+
+## PARAMETER VARIATION
+
+Calculate results for single parameter variations
+```{r, message=FALSE, warning=FALSE, results="hide"}
+select1 <- c("eff","beta","sqmemployee","rmonth","dB","dA","sp","xbar","gm",
+             "gx","gh","tb","wage")
+for(nameparam in select1){
+    text0 <- "OutMobileWork_"
+    text1 <- nameparam
+    text2 <- ".gdx"
+    gdxfile <- paste(text0,text1,text2,sep="")
+#    gdxfile = "OutMobileWork_eff.gdx"
+#  nameparam <- select1
+  for(nameidc in c("DE","US")) {
+    dfpDE <- dfprintidc(gdxfile,nameparam,nameidc)
+    dfpelastDE <- dfprintElast(gdxfile,nameparam,nameidc)
+  }
+}
+```
+
+
+```{r, message=FALSE, warning=FALSE, results="hide"}
+# print results for policy parameters
+select1 <- c("tauw","rho","tauq","taup","taud","taus","tauf","tauc")
+for(nameparam in select1){
+    text0 <- "OutMobileWork_"
+    text1 <- nameparam
+    text2 <- ".gdx"
+    gdxfile <- paste(text0,text1,text2,sep="")
+#    gdxfile = "OutMobileWork_eff.gdx"
+#  nameparam <- select1
+  for(nameidc in c("DE","US")) {
+    dfpDE <- dfprintidc(gdxfile,nameparam,nameidc)
+    dfpelastDE <- dfprintElast(gdxfile,nameparam,nameidc)
+  }
+}
+
+```
+
+
+
+
+## Summarize Results of MC Simulations
+Calculate probabilities
+```{r, include=FALSE, message=FALSE, warning=FALSE}
+gdxfile = "OutMobileWork_MonteCarlo.gdx"
+nameparam <- "MonteCarlo"
+asupport <- "100" 
+nameidc <- "DE"
+dfmcDE <- dfprintMonteCarlo(gdxfile,nameparam, nameidc,asupport)
+dfmcDE2.frame <- dfmcframe(gdxfile,nameparam, nameidc,asupport)  
+
+nameidc <- "US"
+dfmcUS <- dfprintMonteCarlo(gdxfile,nameparam, nameidc,asupport)
+dfmcUS2.frame <- dfmcframe(gdxfile,nameparam, nameidc,asupport)  
+```
+
+
+Plot cumulative densities
+```{r plotcdf2, include=FALSE, message=FALSE, warning=FALSE}
+  value <- seq(0,1, by=0.005)
+  digit = 4
+  namevar<- dfmcUS2.frame$alpha
+  alpha <- calcpro2(namevar,digit,1)
+  namevar<- dfmcUS2.frame$share_v
+  sv <- calcpro2(namevar,digit,1)
+  namevar<- dfmcUS2.frame$share_vc
+  svc <- calcpro2(namevar,digit,1)
+    namevar<- dfmcUS2.frame$share_vo
+  svo <- calcpro2(namevar,digit,1)
+  namevar<- dfmcUS2.frame$share_x
+  sx <- calcpro2(namevar,digit,1)
+    namevar<- dfmcUS2.frame$share_xo
+  sxo <- calcpro2(namevar,digit,1)
+  #sx <- ecdf(dfmcUS2.frame$share_x)
+  prob.frame <- data.frame(value,alpha,sv,svc,svo,sx,sxo)
+  g <- plot(ecdf(dfmcUS2.frame$alpha)) 
+  g <- ggplot(prob.frame, aes(x=share, y=cumprob))
+    calcpro2(namevar,digit,1)  
+ 
+ # cdfplot
+
+ dfcmUS4.frame <- data.frame(dfmcUS2.frame$alpha,dfmcUS2.frame$share_v,dfmcUS2.frame$share_vc,dfmcUS2.frame$share_vo,dfmcUS2.frame$share_x,dfmcUS2.frame$share_xo)
+ colnames(dfcmUS4.frame)
+ names(dfcmUS4.frame)[names(dfcmUS4.frame)=="dfmcUS2.frame.alpha"] <- "alpha"
+  dfcmUS4.frame
+  names(dfcmUS4.frame)[names(dfcmUS4.frame)=="dfmcUS2.frame.share_v"] <- "sv"
+  dfcmUS4.frame
+  names(dfcmUS4.frame)[names(dfcmUS4.frame)=="dfmcUS2.frame.share_vc"] <- "svc"
+  dfcmUS4.frame
+  names(dfcmUS4.frame)[names(dfcmUS4.frame)=="dfmcUS2.frame.share_vo"] <- "svo"
+  dfcmUS4.frame
+  names(dfcmUS4.frame)[names(dfcmUS4.frame)=="dfmcUS2.frame.share_x"] <- "sx"
+  dfcmUS4.frame
+  names(dfcmUS4.frame)[names(dfcmUS4.frame)=="dfmcUS2.frame.share_xo"] <- "sxo"
+  
+   pECDFUSalphaV <-  ggplot(dfcmUS4.frame)+
+          stat_ecdf(aes(x=alpha, color="alpha",linetype="alpha"), size=1.2) +   
+          stat_ecdf(aes(x=sv, color="sv", linetype="sv"), size = 1.1) +
+          stat_ecdf(aes(x=svc, color="svc", linetype="svc"), size=1.1) +
+          stat_ecdf(aes(x=svo, color="svo",linetype="svo"), size=1.1) +
+          stat_ecdf(aes(x=sx, color="sx",linetype="sx"), size=1) +
+        labs(y = "F(share)", x="share or ratio") + 
+        coord_cartesian(xlim = c(0,1),ylim = c(0,1),expand = FALSE,default = FALSE,clip = "on") +
+        geom_hline(aes(yintercept = 0.5,color="median",linetype="median"), size = 1,show.legend = FALSE) +
+      scale_colour_manual("", 
+          breaks = c("alpha", "sv", "svc", "svo", "sx", "median"),
+          labels= c("WFC contracts", "WFC/hours", "basic WFC/hours", "add.WFC/hours", "share x", "median"),
+                      #expression(alpha, v/H, v[c]/H, v[o]/H,x/\bar(x), "median"),
+                      values = c("red", "blue", "black","red","blue","black")) +
+        scale_linetype_manual("", breaks = c("alpha", "sv", "svc", "svo", "sx", "median"),
+                              labels = c("WFC contracts", "WFC/hours", "basic WFC/hours", "add.WFC/hours", "share x", "median"),
+                                #expression(alpha, WFC/H, WFC[c]/H, WFC[o]/H, x/\bar(x), "median"),
+                      values = c("solid", "dashed", "dotted","dotdash","solid","longdash")) +
+        # scale_shape_manual("SHAPES", values = c(
+        #"alpha" = 16,
+        #"sv" = 17) # see docs for shape identifiers
+      #) +
+      #scale_color_brewer("PARTY", palette = "Set2") 
+        #labs(title="") #+
+        theme_classic()
+   pECDFUSalphaV
+   png("pECDFUSalphaV.png")
+   print(pECDFUSalphaV)
+   dev.off()
+   
+   
+dfcmDE4.frame <- data.frame(dfmcDE2.frame$alpha,dfmcDE2.frame$share_v,dfmcDE2.frame$share_vc,dfmcDE2.frame$share_vo,dfmcDE2.frame$share_x,dfmcDE2.frame$share_xo)
+ colnames(dfcmDE4.frame)
+ names(dfcmDE4.frame)[names(dfcmDE4.frame)=="dfmcDE2.frame.alpha"] <- "alpha"
+  dfcmDE4.frame
+  names(dfcmDE4.frame)[names(dfcmDE4.frame)=="dfmcDE2.frame.share_v"] <- "sv"
+  dfcmDE4.frame
+  names(dfcmDE4.frame)[names(dfcmDE4.frame)=="dfmcDE2.frame.share_vc"] <- "svc"
+  dfcmDE4.frame
+  names(dfcmDE4.frame)[names(dfcmDE4.frame)=="dfmcDE2.frame.share_vo"] <- "svo"
+  dfcmDE4.frame
+  names(dfcmDE4.frame)[names(dfcmDE4.frame)=="dfmcDE2.frame.share_x"] <- "sx"
+  dfcmDE4.frame
+  names(dfcmDE4.frame)[names(dfcmDE4.frame)=="dfmcDE2.frame.share_xo"] <- "sxo"
+   pECDFDEalphaV <-  ggplot(dfcmDE4.frame)+
+          stat_ecdf(aes(x=alpha, color="alpha",linetype="alpha"), size=1.3) +   
+          stat_ecdf(aes(x=sv, color="sv", linetype="sv"), size = 1.1) +
+          stat_ecdf(aes(x=svc, color="svc", linetype="svc"), size=1) +
+          stat_ecdf(aes(x=svo, color="svo",linetype="svo"), size=1) +
+          stat_ecdf(aes(x=sx, color="sx",linetype="sx"), size=0.9) +
+        labs(y = "F(share)", x="share or ratio") + 
+        coord_cartesian(xlim = c(0,1),ylim = c(0,1),expand = FALSE,default = FALSE,clip = "on") +
+        geom_hline(aes(yintercept = 0.5,color="median",linetype="median"), size = 1,show.legend = FALSE) +
+      scale_colour_manual("", 
+          breaks = c("alpha", "sv", "svc", "svo", "sx", "median"),
+          labels= c("WFC contracts", "WFC/hours", "basic WFC/hours", "add.WFC/hours", "share x", "median"),
+                      #expression(alpha, v/H, v[c]/H, v[o]/H,x/\bar(x), "median"),
+                      values = c("red", "blue", "black","red","blue","black")) +
+        scale_linetype_manual("", breaks = c("alpha", "sv", "svc", "svo", "sx", "median"),
+                              labels = c("WFC contracts", "WFC/hours", "basic WFC/hours", "add.WFC/hours", "share x", "median"),
+                                #expression(alpha, WFC/H, WFC[c]/H, WFC[o]/H, x/\bar(x), "median"),
+                      values = c("solid", "dashed", "dotted","dotdash","solid","longdash")) +
+        # scale_shape_manual("SHAPES", values = c(
+        #"alpha" = 16,
+        #"sv" = 17) # see docs for shape identifiers
+      #) +
+      #scale_color_brewer("PARTY", palette = "Set2") 
+        #labs(title="") #+
+        theme_classic()
+   pECDFDEalphaV
+   png("pECDFDEalphaV.png")
+   print(pECDFDEalphaV)
+   dev.off()
+   
+    pECDF_US_x <-  ggplot(dfcmUS4.frame)+
+          stat_ecdf(aes(x=x, color="x",linetype="x"), size=1.1) +   
+          stat_ecdf(aes(x=xo, color="xo", linetype="xo"), size = 1.1) +
+        labs(y = "F(share)", x="share or ratio") + 
+        coord_cartesian(xlim = c(0,1),ylim = c(0,1),expand = FALSE,default = FALSE,clip = "on") +
+        geom_hline(aes(yintercept = 0.5,color="median",linetype="median"), size = 1,show.legend = FALSE) +
+      scale_colour_manual("", 
+                      breaks = c("x", "xo", "median"),
+                      labels= expression(x/bar(x), x[0]/bar(x), "median"),
+                      values = c("red", "blue", "black")) +
+        scale_linetype_manual("", breaks = c("sx", "sxo", "median"),
+                              labels = expression(x/bar(x), x[0]/bar(x), "median"),
+                      values = c("solid", "dotted","longdash")) #+
+        # scale_shape_manual("SHAPES", values = c(
+        #"alpha" = 16,
+        #"sv" = 17) # see docs for shape identifiers
+      #) +
+      #scale_color_brewer("PARTY", palette = "Set2") 
+        #labs(title="") #+
+        #theme_classic()
+#   pECDF_US_x
+#      png("pECDF_US_x.png")
+#   print(pECDF_US_x)
+   dev.off()
+  
+```
+
+
+
+## Evaluate results: Regressions and Interactions
+
+```{r regression, warning=FALSE, results='asis'}
+
+# For dev version - install package to make tables1
+
+library(MASS)
+#library(knitr)
+#library(texreg)
+library(censReg)
+library(stargazer)
+stargazer(dfmcDE2.frame)
+stargazer(dfmcUS2.frame)
+
+# add rent per sqm/employee to dataframe
+dfmcDE2.frame <- mutate(dfmcDE2.frame, r = rmonth*sqmemployee)
+# add rent per sqm/employee to dataframe
+dfmcUS2.frame <- mutate(dfmcUS2.frame, r = rmonth*sqmemployee)
+
+regshare_vDE <- censReg(share_v~log(wage) + log(tkm) + log(eff) + log(xbar) 
+                 + log(gm)
+                 + beta
+                 + log(r) + log(gx) + log(gh) 
+                 + log(sp)  + dB,  left=0, right=1, data = dfmcDE2.frame)
+summary(regshare_vDE)
+regshare_vDEm <- margEff(regshare_vDE ,vcov = NULL,
+   calcVCov = TRUE, returnJacobian = FALSE)
+summary(regshare_vDEm)
+
+regshare_vcDE <- censReg(share_vc~log(wage) + log(tkm) + log(eff) + log(xbar) 
+                 + log(gm)
+                 + beta
+                 + log(r) + log(gx) + log(gh) 
+                 + log(sp)  + dB,  left=0, right=1, data = dfmcDE2.frame)
+ summary(regshare_vcDE)
+regshare_vcDEm <- margEff(regshare_vcDE ,vcov = NULL,
+   calcVCov = TRUE, returnJacobian = FALSE)
+summary(regshare_vcDEm)
+
+regshare_voDE <- censReg(share_vo ~ log(wage) + log(tkm) + log(eff) + log(xbar)                 
+                + log(gm)
+                 + beta
+                 + log(r) + log(gx) + log(gh)
+                 + log(sp) + dB,  right=1, data = dfmcDE2.frame)
+summary(regshare_voDE)
+regshare_voDEm <- margEff(regshare_voDE ,vcov = NULL,
+   calcVCov = TRUE, returnJacobian = FALSE)
+summary(regshare_voDEm)
+
+regalphaDE2 <- censReg(alpha~log(wage) + log(tkm) + log(eff) + log(xbar)
+                + log(gm)
+                + beta
+                + log(r)  + log(gx) + log(gh)
+                + log(sp)  + dB,  left=0, right=1, data = dfmcDE2.frame)
+summary(regalphaDE2)
+regalphaDE2m <- margEff(regalphaDE2 ,vcov = NULL,
+   calcVCov = TRUE, returnJacobian = FALSE)
+summary(regalphaDE2m)
+
+# print results for Germany into table
+stargazer(regalphaDE2,regshare_vDE,regshare_vcDE,regshare_voDE,
+          title="Regression Results (Germany)",#algin=TRUE, 
+          dep.var.labels=c("$alpha$","$v/H$","$v_c/H$","$v_o$"),   
+         no.space=TRUE)
+
+
+# results for US
+regshare_vUS <- censReg(share_v~log(wage) + log(tkm) + log(eff) + log(xbar)
+                + log(gm)
+                + beta
+                + log(r) + log(gx) + log(gh)
+                + log(sp) + dB,  left=0, right=1, data = dfmcUS2.frame)
+summary(regshare_vUS)
+regshare_vUSm <- margEff(regshare_vUS ,vcov = NULL,
+   calcVCov = TRUE, returnJacobian = FALSE)
+summary(regshare_vUSm)
+
+regshare_vcUS <- censReg(share_vc ~ log(wage) + log(tkm) + log(eff) + log(xbar)
+                + log(gm)
+                + beta
+                + log(r) + log(gx) + log(gh)
+                + log(sp) + dB,  left=0, right=1, data = dfmcUS2.frame)
+ summary(regshare_vcUS)
+regshare_vcUSm <- margEff(regshare_vcUS ,vcov = NULL,
+   calcVCov = TRUE, returnJacobian = FALSE )
+summary(regshare_vcUSm )
+
+regshare_voUS <- censReg(share_vo~log(wage) + log(tkm) + log(eff) + log(xbar)
+                + log(gm)
+                + beta
+                + log(r) + log(gx) + log(gh)
+                + log(sp) + dB,  left=0, right=1, data = dfmcUS2.frame)
+summary(regshare_voUS)
+regshare_voUSm <- margEff(regshare_voUS ,vcov = NULL,
+   calcVCov = TRUE, returnJacobian = FALSE  )
+summary(regshare_voUSm) 
+
+regalphaUS2  <- censReg(alpha~log(wage) + log(tkm) + log(eff) + log(xbar) 
+                 + log(gm)
+                 + beta
+                 + log(r) + log(gx) + log(gh) 
+                 + log(sp)  + dB,  left=0, right=1, data = dfmcUS2.frame)
+summary(regalphaUS2)
+regalphaUS2m <- margEff(regalphaUS2 ,vcov = NULL,
+   calcVCov = TRUE, returnJacobian = FALSE )
+summary(regalphaUS2m )
+
+
+stargazer(regalphaUS2,regshare_vUS,regshare_vcUS,regshare_voUS,
+          title="Regression Results (U.S.)",#algin=TRUE, 
+          dep.var.labels=c("$alpha$","$v$","$v_c$","$v_o$"),
+          no.space=TRUE)
+
+```
+
+
+# Instructions
+
+Use results from ParamElast..De.txt and PramElast..US.txt (line 11 is the median) to get the elasticities for policy parameters
+
+Use data from DataMC_Us.txt and DataMC_DE.txt for result table in the paper.
+
+Use marginal effects from .pdf file for marginal effects tables in the paper.
+
+
+## Convert .RMD into .md file
+knitr::knit("WFCTRAResults20230420.RMD")
+
+## Convert .md file into .tex file
+ Use tables from .tex file for paper text
+
+
+```{r plotcdf, include=FALSE, message=FALSE, warning=FALSE}
+renv::settings$snapshot.type("all")
+```
+
+
+

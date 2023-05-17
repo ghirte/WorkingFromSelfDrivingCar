@@ -1,0 +1,1968 @@
+
+
+---
+title: "Working from self-driving car - parameters for Monte-Carlo Simulation"
+author: "Georg Hirte"
+date: "20 01 2023"
+output:
+  pdf_document:
+    keep_tex: yes
+  html_document:
+    df_print: paged
+header-includes: \usepackage{graphicx, xcolor, hyperref, natbib, eurosym} 
+  \setcitestyle{authoryear,
+  open={(},close={)}}
+---
+
+
+```{r message=FALSE, warning=FALSE, results="hide", setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+#::opts_chunk$set(comment = NA, echo=FALSE, message = FALSE, warnings = FALSE, results = 'hide')
+#RStudio 2021.09.0 Build 351
+# R version 4.1.2.
+```
+# 1. Introduction
+We calculate the parameters required in the Monte-Carlo Simulation of the paper 
+``Working from self-driving car'' by Georg Hirte. 
+
+* If we have **one observation** far away from zero, we assume this is the mean 
+of a normal distribution with a standard deviation we arbitrarily choose, or a 
+uniform distribution with arbitrarily chosen supports. If the observation is 
+right-skewed and has a left truncation at zero, we use a Gamma distribution. 
+We take 10,000 draws from these distributions.
+* If we have **two or more data points** we either use them as limits of a 95% 
+confidence interval of a normal distribution, the mean supports of a 
+truncated distribution, supports and mean of a Gamma distribution, or support of
+a uniform distribution
+
+* Further restrictions are considered as they come along.
+
+
+# 2. Install and load libraries
+
+Clear data
+```{r, results="hide", warning=FALSE,  message="FALSE"}
+rm(list=ls(all=T))
+graphics.off()
+```
+
+Install packages
+```{r 0.0.0 install packages, results="hide", warning=FALSE,  message="FALSE"}
+install.packages("C:/Users/Hirte/Aufsatz/AutonomCarOffice/GAMS_InVehicleWork/gdxrrw_1.0.6.zip"
+                 ,repos=NULL, type = "win.binary")
+## next: truncated normal distribution and truncated distributions
+#install.packages("truncnorm","crch")
+#install.packages("UnivRNG")
+#source("install.r")
+#install.packages('kerdiest')
+#install.packages("stargazer")
+#to read GDX files we need the gdxrrw package
+
+library(reshape2);
+library(ggplot2);
+# url <- "http://cran.r-project.org/src/contrib/Archive/mcsm/mcsm_1.0.tar.gz"
+# pkgFile <- "mcsm_1.0.tar.gzz"
+# download.file(url = url, destfile = pkgFile)
+# # Expand the zip file using whatever system functions are preferred
+# # look at the DESCRIPTION file in the expanded package directory
+# # Install dependencies list in the DESCRIPTION file
+# install.packages(c("coda","stats","MASS"))
+# # Install package
+# install.packages(pkgs=pkgFile, type="source", repos=NULL)
+# # Delete package tarball
+# unlink(pkgFile)
+
+
+library("mcsm");
+library("pastecs");
+library(truncnorm);
+library(crch);
+library(UnivRNG);
+library(gdxrrw);
+igdx("")
+#igdx("c:/GAMS/34/");
+igdx("c:/GAMS/41/");
+install.packages('gdxdt')
+# next: left truncated gamma
+rm(list=ls())
+```
+## Definitions and Functions
+
+```{r,definitions}
+## Calculate the parameters with cut-offs (interval) and mean used in MC simulation
+# we apply a truncated normal distribution
+
+# Definitions
+## number of random draws
+numberrandom <- 10000
+kmmile <- 1.60934
+# 23.03.2021
+EURDollar <- 0.84
+# sqft per sqm
+sqmsqft <- 10.7639
+
+
+
+# Define plot gamma distribution 
+# 
+# ## Calculate the parameters with cut-offs (interval) and mean used in the MC 
+# if distance between mean and cut-offs is not symmetric we apply a gamma distribution
+# if parameters must be non-negative we also apply a gamma distribution
+# 1. fit a gamma distribution to parameters (mean and interval) 
+# 2. make 10000 draws from this distribution
+
+# Fit a gamma distribution knowing that:
+# - 20% fall below 15 - only start values here
+# - 80% fall below 60 - only start values here
+# Inspired by http://www.johndcook.com/blog/2010/01/31/parameters-from-percentiles/
+# x <- c(0.2, 0.8)
+# y <- c(15, 60)
+# # ?dgamma
+# # ?qgamma
+# 
+# # plot the gamma curve for a given shape and rate argument ----------------
+# 
+# # draws vertical lines at p
+ plotGamma <- function(shape=2, rate=0.5, to=0.99, p=c(0.1, 0.9), cex=1, ...){
+   to <- qgamma(p=to, shape=shape, rate=rate)
+   curve(dgamma(x, shape, rate), from=0, to=to, n=500, type="l", 
+         main=sprintf("gamma(x, shape=%1.2f, rate=%1.2f)", shape, rate),
+         bty="n", xaxs="i", yaxs="i", col="blue", xlab="", ylab="", 
+         las=1, lwd=2, cex=cex, cex.axis=cex, cex.main=cex, ...)
+   gx <- qgamma(p=p,  shape=shape, rate=rate)
+   gy <- dgamma(x=gx, shape=shape, rate=rate)
+   for(i in seq_along(p)) { lines(x=rep(gx[i], 2), y=c(0, gy[i]), col="blue") }
+   for(i in seq_along(p)) { text(x=gx[i], 0, p[i], adj=c(1.1, -0.2), cex=cex) }
+ };
+
+ plotGamma2 <- function(shape=2, rate=0.5, to=0.99, p=c(0.1, 0.9), cex=1, ngy=c(1.0), ...){
+   to <- qgamma(p=to, shape=shape, rate=rate)
+   curve(dgamma(x, shape, rate), from=0, to=to, n=500, type="l", 
+         main=sprintf("gamma(x, shape=%1.2f, rate=%1.2f)", shape, rate),
+         bty="n", xaxs="i", yaxs="i", col="blue", xlab="", ylab="", 
+         las=1, lwd=2, cex=cex, cex.axis=cex, cex.main=cex, ...)
+   gx <- qgamma(p=p,  shape=shape, rate=rate)
+   gy <- dgamma(x=gx, shape=shape, rate=rate) * ngy
+   for(i in seq_along(p)) { lines(x=rep(gx[i], 2), y=c(0, gy[i]), col="blue") }
+   for(i in seq_along(p)) { text(x=gx[i], 0, p[i], adj=c(1.1, -0.2), cex=cex) }
+ };
+ 
+
+# formulate a gamma error function for non-linear least squares -----------
+# from http://www.r-bloggers.com/parameters-and-percentiles-the-gamma-distribution/
+errorGamma <- function(p=c(10,3), quantiles, exp){
+  gx <- c(qgamma(p=quantiles, shape=p[1], rate=p[2]))
+  sum((gx-exp)^2)
+};
+```
+
+
+# 3. Travel parameters
+
+## 3.1 Commuting costs per VKT: gkm
+
+### 3.1.1 pargkmDE
+
+pargkmDE $\equiv$  avg. private travel cost per km by car () in Germany
+
+**Use truncated normal distribution** 
+
+* \citet{ADAC2020a} compares 73 electric cars ($N=73$) with hybrid and conventional 
+cars (CV). 15000 VKT per year.
+* Results do not consider electricity tax (tax free until 2030. Electricity tax 
+in Germany is 0.0205 EUR/kWh, \citep{StromStG} $\rightarrow$ 0.0037 EUR/km given 
+consumption of 18 kWh/100km)
+* Assumptions: current prices; lowest 30.6 (CitiGo e IV Ambition von Skoda, 
+lower limit: lower1) and highest 120.8 (Model X Performance von Tesla, upper limit: upper1) 
+are borders of the symmetric 95% confidence intercal CI
+* CI is $2 \times 1.96$ s.e. wide in case of a normal distributon, $\mu =1/2 * (0.306+1.208)$ 
+  $$\rightarrow sd = sqrt(N) * (\text{upperlimit} - \text{lowerlimit})/3.92$$ 
+* 10000 (numberrandom) draws from the truncated normal distribution
+
+```{r,gkmDE}
+# lower bound
+lower1 <- 0.306
+lower1
+# upper bound of the truncation
+upper1 <- 1.208
+upper1
+# mean and sd if symmetric
+mean1 <- 1/2 * (lower1 + upper1)
+mean1
+# observations
+nn <- 
+# lower1 is the 2.5% percentile of a normal distribution
+#sd1 <- (lower1-mean1)/qnorm(0.025)
+#sd1
+sd1 <- (upper1-mean1)/qnorm(0.975)
+sd1
+# 2. 10000 random draws from normal. but we have a truncated normal 
+# do not use rtrunc (there is a hint that this procedure is not fully correct)
+# set seed to produce exactly reproducable random numbers
+set.seed(1)
+#pargkmDE <- rtruncnorm(numberrandom, a = lower1, b=upper1, mean = mean1, sd =sd1)
+pargkmDE <- rtruncnorm(numberrandom, a = lower1, b=upper1, mean = mean1, sd =sd1)
+meangkmDE <- mean(pargkmDE)
+meangkmDE
+# plot distribution
+## sequence of 1000 values between lower and upper bounds
+xgkm <- seq(from=lower1, to = upper1, by=0.01)
+
+
+## plot density and histogram
+hist(pargkmDE, breaks=80, main="", xlab="gkmDE - random numbers from a truncated normal")
+# multiply N with bin width 0.1 of the histogram
+ygkm <- dtruncnorm(xgkm, a=lower1, b=upper1, mean=mean1, sd=sd1) * (numberrandom*0.05)
+lines(xgkm,ygkm)
+png("imggkmDE.png")
+hist(pargkmDE, breaks=80, main="", xlab="gkmDE - random numbers from a truncated normal")
+# multiply N with bin width 0.1 of the histogram
+ygkm <- dtruncnorm(xgkm, a=lower1, b=upper1, mean=mean1, sd=sd1) * (numberrandom*0.05)
+lines(xgkm,ygkm)
+dev.off()
+```
+
+
+### 3.1.2 pargkmUS
+
+pargkmUS $\equiv$  avg. private travel cost per km by car () in the U.S.
+
+**Use truncated normal distribution** 
+
+* \citet{CompostellaEtAl2020} provide survey and own calculations. We use their 
+own calculations because they improve on the literature. 
+* 68 conventional (CV) and autonomous cars (AV) (including ride sharing) ($N=68$). 
+Small and medium sized cars in 2020 and in 2030. 
+* Their numbers in VMT. We use them in VKT and EUR ((mile -> 1.60934 km; 
+1 US-$ = 0.84 EUR at March 19, 2021); 
+
+* Assumptions: current prices. data for near-term cars (Fig. 2); lowest 50 US-ct 
+(Private ICEV in 2020 - Small SUV, lower limit) and highest 2.35 US-ct 
+(Ridesource, upper limit) are borders of the symmetric 95% confidence intercal CI
+* lower1 is used as 95% quartil, $\mu =1/2 * (0.50+2.35)$   $$\rightarrow sd = 
+\text{lowerlimit})/1.96$$ 
+* 10000 (numberrandom) draws from the truncated normal distribution with support 
+lowerlimit and upperlimit
+
+
+```{r gkmUS}
+lower1 <- 0.50*EURDollar/kmmile
+lower1
+upper1 <- 2.35*EURDollar/kmmile
+upper1
+mean1 <-1/2 * (lower1 + upper1)
+mean1
+#lower1 2.5% percentile of a normal distribution
+sd1 <- (lower1-mean1)/qnorm(0.025)
+sd1
+# 2. 10000 random draws
+## random draws
+set.seed(1)
+pargkmUS <- rtruncnorm(numberrandom, a = lower1, b=upper1, mean = mean1, sd =sd1)
+meandgkmUS <- mean(pargkmUS)
+meandgkmUS
+# plot distribution
+## sequence of 1000 values between lower and upper bounds
+xgkm <- seq(from=lower1, to = upper1, by=0.01)
+xgkm
+## vector of values of the heigth of the probability distribution for each value of x 
+xgkm <- seq(from=lower1, to = upper1, by=0.01)
+
+## plot density and histogram
+hist(pargkmUS, breaks=80, main="", xlab="pargkmUS - random numbers from a truncated normal")
+# multiply N with bin width 0.1 of the histogram
+ygkm <- dtruncnorm(xgkm, a=lower1, b=upper1, mean=mean1, sd=sd1)*1000
+lines(xgkm,ygkm)
+png("imggkmUS.png")
+hist(pargkmUS, breaks=80, main="", xlab="pargkmUS - random numbers from a truncated normal")
+# multiply N with bin width 0.1 of the histogram
+ygkm <- dtruncnorm(xgkm, a=lower1, b=upper1, mean=mean1, sd=sd1)*1000
+lines(xgkm,ygkm)
+dev.off()
+```
+
+## 3.2 gx (variable monetary costs of VKT during in-vehicle work)
+
+### 3.2.1 pargsDE
+
+Variable monetary costs of VKT for firms. 
+
+**Assumptions**
+
+* Use only AV that are electric cars
+* variable costs $=$ electriciy costs
+* energy consumption: 18 kWh/100 km \citep{Deloitte2019}
+* \citet{ADAC2020b} 5.53 EUR-ct/km (operating costs of 830EUR/anno divided by 
+15.000 km/anno) (upperlimit) and 3.8 EUR-ct/km (lowerimit) if charged at the 
+firm (the latter at lower commercial electricity costs. Small firms up to 50000 
+kWh/anno pay 21.19 EUR-ct per kWh \href{https://strom-report.de/strompreis-gewerbe/}). 
+Private households pay on average 27.38 (source?)
+
+```{r, gxDE}
+lower1 <- 0.038
+lower1
+upper1 <- 0.0553
+upper1
+# 2. 10000 random draws from a uniform distribution
+set.seed(12)
+pargsDE <- runif(numberrandom, min = lower1, max=upper1)
+meangsDE <- mean(pargsDE)
+meangsDE
+```
+
+### 3.2.2 pargsUS
+
+Variable monetary costs of VKT for firms in the U.S.
+
+**Assumptions**
+
+* only fuel costs of ridesource vehicles in 2030-35 (VKT of commercial cars > 
+VKT of private cars)
+* \citet{CompostellaEtAl2020}: N=6 (t-distribution; 5 dgf) 0.03 \$/VMT (lowerlimit), 
+0.09 \$/VMT (only fuel cost USD/VMT)
+
+```{r, pargsUS}
+kmmile <- 1.06934
+EURDollar <- 0.84
+lower1 <- 0.03*EURDollar/kmmile
+lower1
+upper1 <- 0.09*EURDollar/kmmile
+upper1
+# We use a uniform distribution of energy/fuel cost per km
+# 2. 10000 random draws from uniform distribution with support lower1 and
+set.seed(12)
+#pargsUS <- rtruncnorm(numberrandom, a = lower1, b=upper1, mean = mean1, sd =sd1)
+pargsUS <- runif(numberrandom, min = lower1, max=upper1)
+meandgsUS <- mean(pargsUS)
+meandgsUS
+```
+
+## 3.3 gd (average fixed monetary costs of travel per hour of invehicle work (EUR$/v$))
+
+### 3.3.1 pargdDE
+
+Fixed monetary travel costs per hour of in-vehicle work (calculations: 171.83 EUR/month 
+BMW i3's fixed costs per month from \citet{ADAC2020b} that include insurance, taxes, 
+maintenance costs. Add monthly leasing rate 180 EUR/month. Sum is aggregate fixed 
+costs per month. If the car is used 19 workdays per month á 12 hours per day we get 
+1.54 EUR/h).  Result: 1.54 EUR/h.
+
+We assume a uniform distribution between 1.04 EUR/h and 7 EUR/h due to leasing rates 
+for 30000 km/a including environmental subsidy (Umweltbonus, 5000€). The only 
+information we have are both limits.   \citep{CompostellaEtAl2020}. (Leasing costs 
+are currently between 50 EUR/month and 354 EUR/month.) The car is fully leased by 
+the firm, while \citet{CompostellaEtAl2020} assumes that the car is rented per km 
+(like a driverless taxi).  {\color{blue} To be checked } Following an announcement 
+of VW that leasing will be 7 EUR/h, we use this is upper limit.
+
+```{r, pargdDE}
+set.seed(123)
+pargdDE <- runif(numberrandom, 1.04, 7)
+meangdDE <- mean(pargdDE)
+meangdDE
+```
+
+### 3.3.2 pargdUS
+
+
+* \citet{CompostellaEtAl2020}: 80,000 mileage per year, lower limit 0.33 \$/VMT, 
+upper limit: 0.37 \$/VMT. (Tab A3/A4, used total USD/VMT minus fuel costs for car 
+offered by the employer: ridesource)
+* We assume: 53 weeks $\rightarrow$ 106 free days, plus 4 to consider additional 
+holidays of the firm (Christmas, labor day) $=$ 110. Hence travel days = $365-110$, 
+usage of AV: 12 hours per day
+
+```{r, pargdUS}
+traveldays <- 365-110
+hoursday <- 12
+mianno <- 80000
+costannolow <- mianno*0.33/(traveldays*hoursday)*EURDollar
+costannolow
+costannoupp <- mianno*0.37/(traveldays*hoursday)*EURDollar
+costannoupp
+lower1 <- costannolow
+lower1
+upper1 <- costannoupp
+upper1
+mean1 <-1/2 * (lower1 + upper1)
+mean1
+# lower1 defines the 2.5% percentile of a normal distribution
+sd1 <- (upper1-mean1)/qnorm(0.975)
+sd1
+# 2. 10000 random draws from truncated normal distribution
+set.seed(123)
+pargdUS <- rtruncnorm(numberrandom, a = lower1, b=upper1, mean = mean1, sd =sd1)
+meangdUS <- mean(pargdUS)
+meangdUS
+## sequence of 500 values between lower and upper bounds
+xgh <- seq(from=lower1, to=upper1, by=0.001)
+hist(pargdUS, breaks=40, main="", xlab="pargdUS - random numbers from a truncated normal")
+# multiply N with bin width 0.1 of the histogram
+ygh <- dtruncnorm(xgh, a = lower1, b=upper1, mean = mean1, sd =sd1) * (numberrandom*0.05)
+lines(xgh,ygh)
+## histogram and density
+png("imggdUS.png")
+hist(pargdUS, breaks=40, main="", xlab="pargdUS - random numbers from a truncated normal")
+# multiply N with bin width 0.1 of the histogram
+ygh <- dtruncnorm(xgh, a = lower1, b=upper1, mean = mean1, sd =sd1) * (numberrandom*0.05)
+lines(xgh,ygh)
+```
+
+
+
+Further
+
+## 3.4 Two-way Commuting Distance 
+
+* distance (two-way commuting distance)
+
+
+### 3.4.1 Commuting distance Germany (distanceDE)
+
+First estimate: \citet{DauthHaller2018}: 21 km (two-way). 9.6\% commute between 0-2 km. 
+We approximate the histogram provided by \citep{DauthHaller2018}.
+
+\begin{figure}[htb]
+\includegraphics{./Graphics/DauthHaller2018_PendeldistanzVerteilung}
+\caption{Commuting distance in Germany} \label{fig: CommuteDistDE}
+\end{figure}
+
+```{r message=FALSE, warning=FALSE}
+# calculate gamma distribution for commuting distance (one-way)
+distlowerDE <- 2
+distmeanDE <- 10.5
+distupperDE <- 90
+# interval [lower,upper] whith borders at plower% and pupper% quantile and mean 
+# with non linear maximization
+# calculate distribution for plower, mean as 70%-percentil, pupper 
+p <- c(0.076,0.7,0.995)
+# calculate distribution 
+## p=c(2,0.1) are start values for shape and rate
+## draw vertical lines at p
+solution <- nlm(f=errorGamma, p=c(2,0.1), quantiles=p, 
+                exp=c(distlowerDE, distmeanDE, distupperDE),print.level=0);
+shape.distDE <- solution$estimate[1]
+rate.distDE  <- solution$estimate[2]
+#plotGamma(shape.elastM0I, rate.elastM0I[,1], p=p)
+plotGamma(shape.distDE, rate.distDE, p=p)
+# use one-way distance Gamma-distribution for random draws of two-way distances
+set.seed(1234)
+distanceDE <- rgamma(numberrandom,shape.distDE,rate.distDE)
+distanceDE <- 2*distanceDE
+meanddistDE <- mean(distanceDE)
+meanddistDE
+# plot histogram
+hist(distanceDE, breaks=80, main="", xlab="distanceDE - random numbers from a gamma")
+png("imgdistanceDE.png")
+hist(distanceDE, breaks=80, main="", xlab="distanceDE - random numbers from a gamma")
+```
+
+
+### 3.4.2 Commuting distance US (distanceUS)
+
+\begin{table}[htb]
+\centering
+\begin{tabular}{l|c}
+\hline
+\hline
+  Commute distance (miles) 2003 & Percent \\
+  \hline
+  1-5   & 29 \\
+  6-10  & 22 \\
+  11-15 & 17 \\
+  16-20 & 10 \\
+  21-25 & 7 \\
+  26-30 & 5 \\
+  30-34 & 3  \\
+  $\geq$ 35 & 8 \\
+  \multicolumn{2}{l}{\cite{BTSt2003}, Quick Facts} \\
+  \hline
+  \multicolumn{2}{l}{Stretch commute $\geq$ 59 miles}\\
+  35-49 & 5.3 \\
+  $\geq$ 50 & 2.7 \\
+  $\geq$ 200 & 0.16 \\
+  \hline
+  \multicolumn{2}{l}{\cite{BTS2017}}
+  \end{tabular}
+  \caption{Commuting distance: 2003} \label{tab: DistWorkUS2003}
+\end{table}
+
+```{r message=FALSE, warning=FALSE}
+# one-way commuting
+# 3.3 millions employees from about 121 in the U.S. stretch commute 
+# (travel more than 50 miles one way) (BTS, 2017). This is one-way distance.
+sharestretch <- 3.3/121
+# From these 2.7% of all commuters share of of travel distances are: 
+# 22% 50-74 miles, 19% 75-99 miles, 7% 100-124, 6% 125-199, 6% 200+ (BTS, 2017)
+share200 <- 0.06*sharestretch
+# 6% of those commute more than 200 miles almost each day 
+# calculate gamma distribution for commuting distance (one-way)
+distlowerUS <- 5*kmmile
+# mean 25.75 km (16 miles)
+distmeanUS <- 15.3*kmmile
+distmedianUS <- 10*kmmile
+distupperUS <- 200*kmmile
+distmeanUS
+distlowerUS
+distupperUS
+#percent lower and upper (share of lowest and highest distance interval in the data)
+plower <- 29/100
+plower
+pupper <- 1-share200
+pupper
+# interval [lower,upper] whith borders at plower% and pupper% percentile and mean 
+# with non linear maximization
+# calculate distribution for plower, mean as 74,5%-percentil, pupper 
+p <- c(plower,0.748,pupper)
+# calculate distribution for plower, mean as 50%, pupper 
+#p <- c(0.001,0.5,0.9984)
+# calculate distribution 
+## p=c(2,0.1) are start values for shape and rate
+## draw vertical lines at p
+solution <- nlm(f=errorGamma, p=c(2,0.1), quantiles=p, 
+                exp=c(distlowerUS, distmeanUS, distupperUS),print.level=0);
+shape.distUS <- solution$estimate[1]
+rate.distUS  <- solution$estimate[2]
+plotGamma(shape.distUS, rate.distUS, p=p)
+# use Gamma-distribution for random draws (two-way, drawn from one-way)
+set.seed(1234)
+distanceUS2 <- rgamma(numberrandom,shape.distUS,rate.distUS)
+# two-way distance
+distanceUS <- 2*distanceUS2
+meandistUS <- mean(distanceUS)
+meandistUS
+mediandistUS <- median(distanceUS)
+mediandistUS
+# mean should be 30.6
+## plot histogramn 
+hist(distanceUS, breaks=80,main="", xlab="distanceUS - random numbers from a gamma")
+png("imgdistanceUS.png")
+hist(distanceUS, breaks=80,main="", xlab="distanceUS - random numbers from a gamma")
+
+
+```
+
+
+## 3.5 Two-way Commuting Time 
+
+### 3.5.1 Commuting time Germany (avgTimeDE)
+
+\begin{table}[htb]
+  \centering
+  \begin{tabular}{l|c|c}
+  \hline
+  \hline
+  One-Way Commute time min & Percent \\
+  $\leq$ 15 & 19  \\
+  15-29     & 31 \\
+  30-59     & 20 \\
+  60-119    & 5  \\
+  $\geq$ 120  & 1 \\
+  no commut & 24 \\
+  \hline
+  \multicolumn{2}{l}{Source: Survey conducted by \citep{Statista2021a}, $N=$2099, 
+  age: 18-64}
+  \end{tabular}
+  \caption{Daily one-way commuting time DE, 2020} \label{tab: commutetimeDE}
+\end{table}
+
+Average commuting time in Germany in 2010 is 44 minutes two way. \citet{GimenezNadal2020}
+
+```{r message=FALSE, warning=FALSE}
+# two way
+avgTimeDE <- 44
+# calculate gamma distribution for one-way commuting distance
+timelowerDE <- 15
+timemeanDE <- 22
+timeupperDE <- 120
+#percent lower and upper in the table (76% of workforce is commuting)
+plower <- 19/76
+plower
+pupper <- 1-1/76
+pupper
+# interval [lower,upper] with borders at plower% and pupper% percentile and mean 
+# with non linear maximization
+# calculate distribtion for plower, mean as 72.2\% percentile to achieve avgtimeDE, pupper 
+p <- c(plower,0.7236,pupper)
+# calculate distribution parameters shape and rate
+## p=c(2,0.1) are start values for shape and rate, draw vertical lines at p
+solution <- nlm(f=errorGamma, p=c(2,0.1), quantiles=p, 
+                exp=c(timelowerDE, timemeanDE, timeupperDE),print.level=0);
+shape.timeDE <- solution$estimate[1]
+rate.timeDE  <- solution$estimate[2]
+plotGamma(shape.timeDE, rate.timeDE, p=p)
+# use Gamma-distribution for random draws (two way from distribution for one way)
+set.seed(3)
+timeDE <- rgamma(numberrandom,shape.timeDE,rate.timeDE);
+timeDE <- 2*timeDE
+meantimeDE <- mean(timeDE)
+meantimeDE
+# plot histogram
+hist(timeDE, breaks=80, main="", xlab="timeDE - random numbers from a gamma")
+png("imgtimeDE.png")
+hist(timeDE, breaks=80, main="", xlab="timeDE - random numbers from a gamma")
+
+
+```
+
+
+### 3.5.2 Commuting time US (avgTimeUS)
+
+First estimate: Average one-way commuting time is 27.6 minutes in 2020 (54.2 two-way). 
+9.8\% commute at least one hour (one-way!) \citep{USDepTr2020}
+
+
+\begin{table}[htb]
+\centering
+\begin{tabular}{l|c}
+\hline
+\hline
+Travel time (min) & Percent \\
+\hline
+  $\leq$ 5  & 2.7 \\
+  5-9   & 9.2 \\
+  10-14 & 12.9 \\
+  15-19 & 14.9 \\
+  20-24 & 14.1 \\
+  25-29 & 6.6 \\
+  30-34 & 13.9 \\
+  35-39 & 3.2 \\
+  40-44 & 4.1 \\
+  45-59 & 8.5 \\
+  60-89 & 6.7 \\
+  $\geq$ 90 & 3.1 \\
+  \hline
+    \cite{BurdEtAl2021}, Table 1, p.3 \\
+  \hline
+  \end{tabular}
+  \caption{Travel Time To Work: 2019} \label{tab: TTWorkUS2019}
+\end{table}
+
+
+```{r message=FALSE, warning=FALSE}
+# two-way 
+avgTimeUS <- 54.2
+
+# calculate gamma distribution for one-way commuting distance
+timelowerUS <- 5
+timemeanUS <- 27.6
+timeupperUS <- 89
+# interval [lower,upper] whith borders at plower% and pupper% percentile and mean 
+# with non linear maximizati
+# use low as plower, mean as 65.2% to achieve avgTimeUS, and pupper 
+p <- c(0.027,0.652,0.969)
+# p=c(2,0.1) are start values for shape and rate
+# draw vertical lines at p
+solution <- nlm(f=errorGamma, p=c(2,0.1), quantiles=p, 
+                exp=c(timelowerUS, timemeanUS, timeupperUS),print.level=0)
+shape.timeUS <- solution$estimate[1]
+rate.timeUS  <- solution$estimate[2]
+plotGamma(shape.timeUS, rate.timeUS, p=p)
+# use Gamma-distribution for random draws
+set.seed(3)
+timeUS <- 2*rgamma(numberrandom,shape.timeUS,rate.timeUS)
+meantimeUS <- mean(timeUS)
+meantimeUS
+# plot histogram
+hist(timeUS, breaks=80, main="", xlab="timeUS - random numbers from a gamma")
+png("imgtimeUS.png")
+hist(timeUS, breaks=80, main="", xlab="timeUS - random numbers from a gamma")
+
+```
+
+
+### 3.5.3 Average Speed in German Cities (tkmDE)
+
+Average speed in German cities in 2018 \citep{Statista2020}
+
+*  11mph: Berlin, Munich, Frankfurt, Leipzig, Bonn
+*  12mph: Hamburg, Bremen, Karlsruhe, Augsburg
+*  13mph: Köln, Stuttgart, Nürnberg, Hannover, Wiesbaden
+*  14mph: Düsseldorf, Wuppertal, Mannheim 
+
+SRV for Berlin: average trip with car on a normal day in 2018 is 22.3 min, 7.4 km, 
+19.8 km/h \citep{GerikeEtAl2020}. However, this is average speed. Since commuting 
+is mainly occurring during peak hours, speed is lower. We use the speed provided 
+by \citep{Statista2020} which is 17.7 km/h (11 mph).
+
+There is a correlation between commute time and commute distance. It is about 0.78 
+in the NL in the 1990s (Rietveld et al. 1999). Hence we cannot independently choose 
+time per km and distance. We draw distances from above (MC). Then we calculate for 
+each draw of distance the corresponding average travel time per km by applying the 
+approach of \citet{Rietveld1999}. 
+
+Average speed is avgtime/avgdistance. Shorter distances takes longer time 
+(speed is 0.6/1 times slower than for distance beyond 25km) \citep{Rietveld1999}. 
+
+We use the following information: average speed in large cities, average distance 
+of all commutes (22 km one-way = mean). Distance below are usually traveled at 
+lower speed \citep{Rietveld1999}.  According to \citet{Rietveld1999}, travel 
+speed increases considerably with distance mainly due to high costs for the first 
+km and the increasing share of highways used at longer commutes.    
+
+```{r, tkmDE}
+# speed in km/h
+speed11 <- kmmile*11
+speed12 <- kmmile*12
+speed13 <- kmmile*13
+speed14 <- kmmile*14
+speed18 <- kmmile*18
+speed11
+speed12
+speed18
+# for each random draw of distanceDE (tx), draw tkmDE (travel time per km).
+# distribution of speed below 25 km depends on speed11--speed14. Use one-way distance 
+#instead of two-way distance. 
+# Example: Berlin
+# avg. distance of a car trip in Berlin, 2018 = 7.4 km
+distcities <- 7.4
+#Since distance is 7.4km on average in Berlin, we use the 
+#first part of the kinked-linear regression line from \citet{Rietveld1999} and calculate 
+#parameters to meet the city-specific time and speed. This holds for all other 
+# 11mph-cities.
+# Speed within city of Berlin (speed11): Travel time of avg. distanced trip 7.4km 
+# with average commuting speed in minutes
+time11 <- distcities/speed11*60
+time11
+time18 <- distcities/speed18*60
+time18
+# set parameters of kinked travel time function time = f(distance): 
+# For distances below 25km: time = a + b*dist
+# We fix a = 8 (about the parameter estimated by Rietveld et al. (1999) for NL). 
+# Solve for b :  b = (time-a)/dist = (1/speed*60 - a)/dist
+# b calculated for one-way trips
+parb11 = (time11-8)/distcities
+parb11
+parb18 = (time18-8)/distcities
+parb18
+# As a consequence: travel time in Berlin for a trip of length 2 km = 12.6 min, 
+#7.4 km = 25.1 min, 25 km = 65.7 min
+
+
+# 11 mph for most congested A-cities, B-cities, C-cities: B, F, M; BN, L; Augsburg
+# 14 mph for less congested A-city: D; 7th cong. B-city: Mannheim; 2nd congested 
+# C-city: Wuppertal
+# 18 mph assumed for fastest B- and C-cities.
+
+# Parameter c from Rietveld et al. (1999) = 0.6
+# draw from a uniform distribution
+# calculate travel time for each distance traveled in minutes
+# calculate travel time per km in hours (for distances below 0.1 km we have fixed time of 8 minutes)
+set.seed(31)
+parambDE <- runif(numberrandom,min=parb18, max=parb11)
+timedistDE <- c(1:10000)
+timekmDE <- c(10000)
+summary(distanceDE)
+for(i in 1:numberrandom) {
+  timedistDE[i] <- 8 + parambDE[i] * min(distanceDE[i]/2,25) + 0.6 * 
+    max(distanceDE[i]/2-25,0)
+  if (distanceDE[i]>=0.1) {
+    timekmDE[i] <- (timedistDE[i]*60/distanceDE[i])/360
+  }
+  else
+   { timekmDE[i] <- (timedistDE[i]*60)/360
+   }
+}
+timedistDE <- timedistDE*2;
+meantimekmDE <- mean(timekmDE)
+meantimekmDE
+#timekmDE
+min(timekmDE)
+max(timekmDE)
+```
+
+
+
+
+
+### 3.5.4 Average Speed in US-Cities  (tkmUS)
+
+First estimate: Average speed according to \citet{Geotab2018}, average rush-hour 
+speed in major U.S. cities range from 19 mph in Washington D.C. to 41 mph in St. Louis. 
+
+
+```{r message=FALSE, warning=FALSE}
+speed19 <- kmmile*19
+speed41 <- kmmile*41
+# average travel time US-cities in min:  22.6 (city <- 30000) - 33.1 (>= 5 Mill)
+time19 = 33.1
+time41 = 22.6
+# calculate avg dist
+distcit19 <- speed19 * time19 / 60
+distcit41 <- speed41 * time41 / 60
+# set parameters of kinked travel time function time = f(distance): 
+# For distances below 25km: time = a + b*dist
+# We fix a = 8 (about the parameter estimated by Rietveld et al. (1999) for NL). 
+# Solve for b :  b = (time-a)/dist = (1/speed*60 - a)/dist
+# b calculated for one-way trips
+parb19 = (time19-8)/distcit19
+parb19
+parb41 = (time41-8)/distcit41
+parb41
+
+# Parameter c from Rietveld et al. (1999) = 0.6
+# draw from a uniform distribution
+# calculate travel time for each distance traveled in minutes
+# calculate travel time per km in hours (for distances below 0.1 km we have fixed time of 8 minutes)
+set.seed(31)
+parambUS <- runif(numberrandom,min=parb41, max=parb19)
+timedistUS <- c(1:10000)
+timekmUS <- c(10000)
+summary(distanceUS)
+for(i in 1:numberrandom) {
+  timedistUS[i] <- 8 + parambUS[i] * min(distanceUS[i]/2,25) + 0.6 * 
+    max(distanceUS[i]/2-25,0)
+  if (distanceUS[i]>=0.1) {
+    timekmUS[i] <- (timedistUS[i]*60/distanceUS[i])/360
+  }
+  else
+   { timekmUS[i] <- (timedistUS[i]*60)/360
+   }
+}
+timedistUS <- timedistUS*2;
+meantimekmUS <- mean(timekmUS)
+meantimekmUS
+#timekmDE
+min(timekmUS)
+max(timekmUS)
+
+
+
+```
+
+
+
+
+
+
+
+
+## 3.6 Avg. hours per workday
+
+### 3.6.1 Avg. hours per workday Germany
+
+Full-time equivalents
+* 8 hours day
+* 33 hours paid leave days \citep{Maye2019}
+* 251 workdays in 2019 (minus weekends)
+* 251-33 = 218 workdays / 12 month = 18.2 workdays per month
+
+
+### 3.6.2 Avg. hours per workday US
+
+* 7.62 h/day (U.S. Bureau of Labor Statistics; \href{https://www.bls.gov/data/}{BLS})
+* 251 workdays in 2019
+* US 10 paid leave days and 6 holidays on average \citet{Maye2019}
+* 235 workdays per year / 12 = 19.58 workdays per month
+
+
+# 3.7 Productivity
+
+Per labor hour (all workers, not only FTEs)
+
+## 3.7.1 Productivity Germany
+
+  * Annual hours worked per worker in 2019: DE 1386 h/year (OECD 2021: \href{https://stats.oecd.org/Index.aspx?DataSetCode=ANHRS} (accessed on 22 March 2021)
+ *  Employment DE 2019: 41061 k (OECD 2021: \href{https://stats.oecd.org/Index.aspx?DataSetCode=LFS_D} 
+ (accessed on 22 March 2021)
+ * GDP DE 2019: 4644164 million \$ \href{https://doi.org/10.1787/dc2f7aec-en} 
+ (accessed on 22 March 2021) 
+ * Avg. prod per hour worked (own calculation)
+ * GDP per hour worked: own calculations:
+ 
+```{r, GDPperHourDE}
+# GDP in 2019 in $/year
+GDPDE <- 4644164000000*EURDollar
+# Avg. hours worked per worker and year (h/year) in 2019
+HoursYearDE <- 1386
+# Number of employees US in 2019
+EmployeesDE <- 41061000
+avgprodDE1 <- GDPDE/(HoursYearDE*EmployeesDE)
+set.seed(314)
+avgprodDE <- runif(numberrandom, min = avgprodDE1, max = avgprodDE1)
+meanavgprodDE <- mean(avgprodDE)
+meanavgprodDE
+``` 
+
+## 3.7.2 Productivity U.S.
+
+ (U.S. Bureau of Labor Statistics; \href{https://www.bls.gov/data/}{BLS})
+ 
+ GDP per hour worked: 
+ \href{https://ourworldindata.org/grapher/labor-productivity-per-hour-pennworldtable?tab=table}{Our World in data}
+ 
+ * Annual hours worked per worker in 2019: US 1779 h/year (OECD 2021: \href{https://stats.oecd.org/Index.aspx?DataSetCode=ANHRS} (accessed on 22 March 2021)
+ * Employment U.S.\ in 2019 147194 k (OECD 2021: 
+ \href{https://stats.oecd.org/Index.aspx?DataSetCode=LFS_D}) (accessed on 22 March 2021)
+ * OECD (2021), Gross domestic product (GDP) (indicator). U.S. 2019: 21433226 million \$ \href{https://doi.org/10.1787/dc2f7aec-en} (accessed on 22 March 2021)
+ * Avg. prod per hour worked (own calculation)
+ 
+GDP per hour worked is
+```{r, GDPperHourUS}
+# GDP in 2019 in $/year
+GDPUS <- 21433226000000*EURDollar
+# Avg. hours worked per worker and year (h/year) in 2019
+HoursYearUS <- 1779
+# Number of employees US in 2019
+EmployeesUS <- 147194000
+avgprodUS1 <- GDPUS/(HoursYearUS*EmployeesUS)
+avgprodUS1
+set.seed(314)
+avgprodUS <- runif(numberrandom, min = avgprodUS1, max = avgprodUS1)
+
+```
+
+
+# 3.8 AVG: Wage
+
+Only Full-time-equivalent employees (FTE)
+
+## 3.8.1 Avg. wage and wage distribution Germany
+
+
+* Average annual gross wage per worker DE: (current prices, OECD)  42421 EUR {\href{https://stats.oecd.org/Index.aspx?DataSetCode=LFS_D}, (accessed on 22 March 2021)}
+* Avg. gross wage/h per FTE (full-time equivalent) worker in different sectors in 
+Germany, 2019 (see \ref{tab: wageDE1})
+* skilled-dependent avg.\ gross wage/h per FTE in Germany, 2018 (see \ref{tab: wageDE})
+* Minimum wage in 2019: 9.50 EUR/h \citet{DeStatis2021}
+* wage distribution in Germany, 2018 \citet{DeStatis2018}
+* Graphic below: own graph based on data from table 1.1.4 in \citet{DeStatis2018}. Wages of full time workers, in Agriculture, Manufacturing, and Services. 
+
+\begin{figure}[htb]
+\includegraphics{./Graphics/HourlyWagesDE2018}
+\caption{Hourly wages for FTE in Germany, 2018} \label{fig: wagesDE}
+\end{figure}
+
+
+
+```{r warning=FALSE, message=FALSE}
+# Estimate kernel density of the German gross wage distribution 
+#(thanks to F. Javier Rubio: Kernel Density and Distribution Estimation for data 
+# with different supports, 11 August, 2017)
+
+# Data from \citet{DeStatis2018}, Tab 1.1.4
+datawageDE <- read.table("WagesHistogramDestatis2018FSTab114.csv", sep = ";", header = TRUE)
+
+library(kerdiest)
+
+datawageDE2.data <- c(runif(datawageDE[1,2],datawageDE[1,3]-0.4,datawageDE[1,3]+0.4))
+for (n1 in 2:135) {
+  datawageDE2.data <- c(datawageDE2.data,
+                            c(runif(datawageDE[n1,2],datawageDE[n1,3]-0.4,datawageDE[n1,3]+0.4)))
+}
+# calculate bandwith
+# x quantiles
+# h,b0 smoothing, bandwith
+kde.dunif <- function(x,h,data) mean( dunif(x-data,0,h))
+
+b0 <- bw.nrd0(datawageDE2.data)
+b0
+kde.dfit <- Vectorize(function(x) kde.dunif(x,b0,datawageDE2.data))
+hist(datawageDE2.data,probability = T, breaks = 135, ylim = c(0,0.06), xlab = "gross wage", ylab = "Density", main="Histogram vs KDE")
+curve(kde.dfit,0,140,lwd=3,col="blue",add=T,n=50)
+box()
+ww <- kde.dunif(100,b0,datawageDE2.data)
+
+# 10000 random draws from the kernel density
+wagehist <- hist(datawageDE2.data,breaks=135,freq=FALSE)
+set.seed(17)
+samplesize = 10000
+bins=with(wagehist,sample(length(mids),samplesize,p=density,replace=TRUE)) 
+# choose a bin
+wageDE =runif(length(bins),wagehist$breaks[bins],wagehist$breaks[bins+1]) 
+# sample a uniform in it
+hist(wageDE,probability = T, breaks = 100, ylim = c(0,0.06), xlab = "gross wage", ylab = "Density", main="Random draws of wage DE")
+
+```
+
+
+ 
+
+
+
+
+## 3.8.2 Avg wage and wage distribution US
+
+
+
+\begin{table}[htb]
+  \begin{tabular}{l|c|c}
+   \hline \hline 
+    \multicolumn{3}{c}{Average hourly wage of FTE in 2019$^\text{a}$} \\
+    \hline
+    Occuption & wage \$/h & rel. s.e.\\
+    Full-time business/financ operations occuption Bloomington, IN & 31.53 & 1.5 \\
+    Full-time business/financ operations occuption (U.S.) & 37.65 & -- \\
+    Level 06 management occup (U.S.) & 16.31 & -- \\
+    Level 06 accountants and auditors (U.S.) & 24.88 & 2.5 \\
+    Level 09 accountants and auditors (U.S.) & 36.87 & 2.8 \\
+    Level 12 accountants and auditors (U.S.) & 69.98 & 12.8 \\
+    Level 06 computer/math occup. Austin-Round Rock, TX & 22.67 & 5.7 \\
+    Level 08 computer/math occup. Austin-Round Rock, TX & 32.54 & 2.8 \\
+    Level 11 computer/math occup. Austin-Round Rock, TX & 51.78 & 1.8 \\
+    Avg. worker (U.S. - average; Q4) & 25.72$^\text{b}$ & 1.1 \\
+    Compensation (soc. benefits; Q4) & 11.03 & 1.5 \\
+    \hline
+    \multicolumn{3}{l}{\footnotesize $^{\text{a}}$ \citet{USBoL2021a}} \\
+    \multicolumn{3}{l}{\footnotesize $^{\text{b}}$ \citet{USBoL2021a}}
+  \end{tabular}
+  \caption{Average hourly wage in office jobs,U.S.\ 2019} \label{eq: wageUS}
+\end{table}
+
+\begin{table}[htb]
+  \begin{tabular}{l|c|c}
+   \hline \hline 
+    \multicolumn{3}{c}{Median weekly wage of FTE workers in 2019, U.S.} \\
+    \hline
+    Education & \$/week & \\
+    \hline 
+    High school graduates, no college & 747 & \\
+    Bachelor's degree or higher & 1382 &  \\
+    Bachelor's degree only & 1259 & \\
+    Advanced degree & 1571 & \\
+    \hline
+    \multicolumn{3}{l}{\footnotesize \citet{USBoL2021a}} \\
+     \multicolumn{3}{l}{\footnotesize 25 years and over } \\         
+     \multicolumn{3}{l}{\footnotesize State and county, avg. wages all workers 
+     are available} \\
+     \multicolumn{3}{l}{\footnotesize Avg.\ hours worked, business/financ.\ 
+     services = 34.4 h/week}
+  \end{tabular}
+  \caption{Average hourly wage in office jobs, 2019} \label{tab: AvgwageeducationUS}
+\end{table}
+
+Wage distribution in the U.S.
+
+* Average annual wage per worker U.S.: 65836 USD  
+  \citet[current prices, 2020][]{OECD2021}  $\rightarrow$ used for calculating 
+  the average wage
+* Avg. hourly wage for some occupation groups, FTE U.S., 2019/4 (see \ref{eq: wageUS})
+* Avg. hourly wage according to education level, FTE U.S., 2019/4 
+  (see \ref{tab: AvgwageeducationUS})
+* minimum wage in 2019: 7.25 USD/h \citet[see][]{USDoL2021}
+
+We use Table \ref{eq: wageUS} for low and high wages (used as percentiles)
+
+Data on the wage distribution see also \citet{Gould2020}.
+
+\begin{table}[htb]
+  \centering
+  \begin{tabular}{r|c}
+    \hline
+    \hline
+    Percentile & USD/h \\
+    \hline
+    10 & 10.07 \\
+    20 & 12.31 \\
+    30 & 14.64 \\
+    40 & 16.71 \\
+    50 & 19.33 \\
+    60 & 22.95 \\
+    70 & 27.94 \\
+    80 & 34.98 \\
+    90 & 48.08 \\
+    95 & 67.14 \\
+  \hline
+  \multicolumn{2}{l}{\footnotesize Source: \citep{Gould2020}} \\
+  \multicolumn{2}{l}{\footnotesize Avgl.\ wages per percentiles in 2019 in 2019}. \\
+  \hline
+  \end{tabular}
+  \caption{Wages US, 2019} \label{tab: WagesUS}
+\end{table}
+
+```{r message=FALSE, warning=FALSE}
+# calculate gamma distribution for avg, wage
+wagelowerUS  <- 10.07*EURDollar
+wageupperUS <- 67.14*EURDollar
+wageminimumUS <- 7.25*EURDollar
+# OECD annual avg. wage / avg. work hours per year: 
+wagemeanUS <- 25.72
+wagemeanUS
+wagelowerUS
+wageupperUS
+# 65836/HoursYearUS*EURDollar
+# interval [wagelower,wageupper] whith borders at 10% and 95% percentile 
+# and mean 0.66 (25.72 is between 60th and 70th percentile)
+# with non linear maximization
+# use wagelower as 5%, wagemean as 57.6193%, and wageupper as 95% 
+p <- c(0.10,0.576193,0.95)
+# p=c(2,0.1) are start values for shape and rate
+solution <- nlm(f=errorGamma, p=c(2,0.1), quantiles=p, 
+                exp=c(wagelowerUS, wagemeanUS, wageupperUS),print.level=0)
+shape.wageUS <- solution$estimate[1]
+rate.wageUS  <- solution$estimate[2]
+plotGamma(shape.wageUS, rate.wageUS, p=p)
+# use Gamma-distribution for random draws
+set.seed(321)
+wageUS <- rgamma(numberrandom,shape.wageUS,rate.wageUS)
+meanwageUS <- mean(wageUS)
+meanwageUS
+# plot histogram
+hist(wageUS, breaks=60, main="", xlab="wageUS - random numbers from a truncated normal")
+png("imgwageUS.png")
+hist(wageUS, breaks=60, main="", xlab="wageUS - random numbers from a truncated normal")
+
+```
+# 3.9 AVG wage tax rate (including social security payments)
+
+Only Full-time-equivalent employees (FTE)
+
+## 3.9.1 Avg. wage and social security rates on gross-wages Germany
+
+\citet{OECD2020}
+
+* single earner (Avg. income), 42651 USD annual taxable income (gross wage minus employers social insurance contributions). 10037 USD income tax, 10476 USD soc security contributions = 20514 USD payments to government
+* family with 2 children: 
+** 1 earner with avg. wage, 42746 USD, 786 USD income tax, 19346 USD soc sec.
+** 2 earner with 100\% and 67\% income: 55863 USD taxable income, 9807 USD income tax, 17277 USD soc sec. = 27084 USD payments to government
+
+``` {r avg wage tax rate}
+# Simply calculate average of a single earner with avg wage and a family with two earners, one earning avg. wage the other 2/3 of avg. wage
+wageEURDE = 0.5*(55863 + 42561)*EURDollar
+wageEURDE
+taxliabilityDE = 0.5 * (20514+27084)*EURDollar
+taxliabilityDE
+avgtaxrateDE = taxliabilityDE/wageEURDE
+avgtaxrateDE
+
+```
+
+## 3.9.2 Avg. wage and social security rates on gross-wages U.S.
+
+
+
+\citet{OECD2020}
+
+* single earner (Avg. income), 57055 USD annual taxable income (gross wage minus employers social insurance contributions). 5727 USD income tax, 3608 states and local taxes, 4365 USD soc security contributions = 13699 USD payments to government
+* family with 2 children: 
+** 2 earner with 100\% and 67\% income: 95282 USD taxable income, 4118 USD income tax, 5590 state and local taxes, 7289 USD soc sec. = 16997 USD payments to government
+
+``` {r avg wage tax rate US}
+# Simply calculate average of a single earner with avg wage and a family with two earners, one earning avg. wage the other 2/3 of avg. wage
+wageEURUS = 0.5*(57055 + 95282)*EURDollar
+wageEURUS
+taxliabilityUS = 0.5 * (13699+16997)*EURDollar
+taxliabilityUS
+avgtaxrateUS = taxliabilityUS/wageEURUS
+avgtaxrateUS
+
+```
+
+
+
+# 4. Office Parameters
+
+## 4.1. Monthly rent per sqm of office space
+
+### 4.1.1 Germany (rmonthDE)
+
+In Germany, data on office rents are not publicly available. There is a small 
+number of statistics aoffered by private firms (see Table \ref{tab: officerentsDE}). 
+Nothing is known about the distribution of officen rents. We assume, that rents 
+span equally between the lowest rent and highest rent in the seven largest cities 
+(Big 7). Of course, intuitively there is less office space in the upper segment.
+
+
+\begin{table}[htbp]
+  \centering
+  \begin{tabular}{l|c|c|c|c|c|c}
+    \hline \hline
+    \multicolumn{7}{c}{Rents office space 2019-2020 [EUR/m$^2$]} \\
+    \hline
+    City            & average  & max.       & lowest     & avg.add.  & available 
+    & newly rented \\
+                    & EUR/qm   & EUR/qm     & EUR/qm     & costs sqm & mill.sqm  
+                    & mill.sqm      \\
+    \hline
+    Berlin          & 28.70$^{\text{c}}$ & 38,00$^{\text{k}}$ & 9.00$^{\text{k}}$  & 3.68$^{\text{m}}$ 
+                    & 20.80$^{\text{k}}$ & 0.999$^{\text{k}}$  \\
+    Cologne         & 15.90$^{\text{h}}$ & 26.00$^{\text{k}}$ & 6.50$^{\text{k}}$  
+    & 3.51$^{\text{m}}$ 
+                    &  7.84$^{\text{k}}$ & 0.291$^{\text{k}}$ \\
+    Düsseldorf      & 16.80$^{\text{f}}$ & 28.50$^{\text{g,k}}$ & 7.00$^{\text{k}}$  
+    & 3.57$^{\text{m}}$ 
+                    &  9.24$^{\text{k}}$ & 0.550$^{\text{k}}$ \\
+    Frankfurt (Main)& 22.89$^{\text{a}}$ & 41.50$^{\text{k}}$ & 9.00$^{\text{k}}$  
+    & 3.81$^{\text{m}}$ 
+                    & 11.63$^{\text{k}}$ & 0.580$^{\text{k}}$ \\
+    Hamburg         & 17.40$^{\text{e}}$ & 31.00$^{\text{k}}$ & 6.00$^{\text{k}}$  
+    & 3.64$^{\text{m}}$ 
+                    & 15.14$^{\text{k}}$ & 0.530$^{\text{k}}$ \\
+    Munich          & 20.50$^{\text{b}}$ & 41.00$^{\text{k}}$ & 9.50$^{\text{k}}$  
+    & 3.82$^{\text{m}}$ 
+                    & 20.96$^{\text{b,k}}$ & 0.760$^{\text{k}}$ \\
+    Stuttgart       & 20.40$^{\text{i}}$ & 25.50$^{\text{k}}$ & 9.00$^{\text{k}}$  
+    & 3.51$^{\text{m}}$ 
+                    &  8.84$^{\text{k}}$ & 0.319$^{\text{k}}$\\
+    \hline
+    Essen  (B-City) & 12.00$^{\text{e}}$ & 16.00$^{\text{e}}$ &  & & &                   \\
+    Leipzig (B-City)& 10.80$^{\text{e}}$ & 15.50$^{\text{e}}$ &  & & &                 \\
+    \hline
+    A-Cities        & & 34.30$^{\text{n}}$ & & & & 4.03$^{\text{o}}$\\
+    B-Cities        & & 15.20$^{\text{n}}$ & & & & 1.2$^{\text{o}}$ \\
+    C-Cities        & & 13.40$^{\text{l}}$ & & & & \\
+    D-Cities        & & 10.50$^{\text{l}}$ & & & & \\
+    All 127 cities  & & & & & & 6.1$^{\text{o}}$\\
+    \hline
+    \multicolumn{3}{l}{\footnotesize $^{\text{a}}$ Source: \citet{Statista2021c}, Rent 2020} &
+    \multicolumn{4}{l}{\footnotesize $^{\text{b}}$ Source: \citet{Statista2021d}, Rent 2019} \\
+    \multicolumn{3}{l}{\footnotesize $^{\text{c}}$ Source: \citet{Statista2021e}, Rent 2019} &
+    \multicolumn{4}{l}{\footnotesize $^{\text{d}}$ Source: \citet{Statista2021f}, Rent 2020} \\
+    \multicolumn{3}{l}{\footnotesize $^{\text{e}}$ Source: \citet{Statista2021g}, Rent 2020} & 
+    \multicolumn{4}{l}{\footnotesize $^{\text{f}}$ Source: \citet{Statista2021h}, Rent 2020} \\
+    \multicolumn{3}{l}{\footnotesize $^{\text{g}}$ Source: \citet{Statista2021i}, Rent 2020} &
+    \multicolumn{4}{l}{\footnotesize $^{\text{h}}$ Source: \citet{Statista2021j}, Rent 2020} \\
+    \multicolumn{3}{l}{\footnotesize $^{\text{i}}$ Source: \citet{Statista2021k}, Rent 2019} &
+    \multicolumn{4}{l}{\footnotesize $^{\text{j}}$ Source: \citet{Statista2021l}, Rent 2019} \\
+    \multicolumn{3}{l}{\footnotesize $^{\text{k}}$ Source: \citet{JLL2021}, Rent 2020} &
+    \multicolumn{4}{l}{\footnotesize $^{\text{l}}$ Source: \citet{BNP2021}, Rent 2020} \\
+    \multicolumn{3}{l}{\footnotesize $^{\text{m}}$ Source: \citet{JLL2018}, 2018} &
+    \multicolumn{4}{l}{\footnotesize $^{\text{j}}$ Source: \citet{Statista2021m}, 2019, 3\% 
+    in highest segment} \\
+    \multicolumn{3}{l}{\footnotesize $^{\text{o}}$ Source: \citep{FeldEtAl2020}}, 2019 & & & \\
+    \hline
+    \multicolumn{7}{l}{\footnotesize \parbox{12cm}{Note A-cities account for about 66\% 
+    of new rent are in 2019, B-cities for 10\%, C-cities for 5\%. \citep{FeldEtAl2020}}} \\
+    \multicolumn{7}{l}{\footnotesize \parbox{12cm}{B-Cities (14): Bochum, Bonn, Bremen, 
+    Dresden, Dortmund, Duisburg, Essen, Hannover, Karlsruhe, Leipzig, Mannheim, 
+    Nürnberg, Münster, Wiesbaden}}
+  \end{tabular}
+  \caption{Office rents of new contracts, Germany, 2019 and 2020}  
+  \label{tab: officerentsDE}
+\end{table}
+
+We do not have any information on the distribution of the rents paid. Therefore, 
+we use a very simply approach. We assume that rents in each of the i-City-Segment 
+is normally distributed around the mean gross rent but is truncated at the minimum 
+and maximum rent level. We have these in the A-city segment. In the B-City segment 
+there is no minimum and no mean, while the maximum is taken from the city of Essen 
+and the mean from the city of Leipzig. We use the very low minimum from the A-city 
+segment also as minimum for the B-city segment. We have only maximum rents for C- 
+and D-cities. We use 5 EUR as minimum (slightly lower than in the A-cities).  Then, 
+we assume equal distribution of rents in C- and D-cities. Eventually, we draw for 
+each i-City segment a share of 10000 random draws from the assumed densities. The 
+share is calculated from the share of each segment on all newly rented sqm in 2019/20. 
+The share of C- and D-cities is calculated with the assumption that C-cities' 
+accumulated share of newly rented sqm is three times as large as the share of D-cities sqm. 
+
+
+```{r, officerentDE}
+# Calculate city types' share on newly rented office space
+shareNewlyRentedACities <- 4.029/6.1
+shareNewlyRentedBCities <- 1.2/6.1
+shareNewlyRentedCCities <- 0.75*(6.1-4.029-1.2)/6.1
+shareNewlyRentedDCities <- 0.25*(6.1-4.029-1.2)/6.1
+
+# Importing the dplyr library (to add columns from manipulation of existing data columns)
+library(dplyr)
+# data base (Table Office Rents Germany)
+# note: addcosts of B-C cities is assumed to be 3.5
+dfRentDE = data.frame(
+  "City" = c("Berlin","Cologne","Dusseldorf","Frankfurt","Hamburg", "Munich","Stuttgart","ACities","BCities","CCities", "DCities"),
+  "avgrent" = c(28.700, 15.900, 16.80, 22.89, 17.40, 20.50, 20.400, NaN, NaN, NaN, NaN),
+  "upperrent" = c(38.000, 26.000, 28.50, 41.50, 31.00, 41.00, 25.500, 34.30, 15.2, 13.4, 10.5),
+  "lowestrent" = c(9.000, 6.500, 7.00, 9.00, 6.00, 9.50, 9.000, NaN, NaN, NaN, NaN),
+  "addcosts" = c(3.680, 3.510, 3.50, 3.81, 3.64, 3.82, 3.510, 3.5, 3.5, 3.5,  3.5),
+  "available" = c(20.800, 7.840, 9.24, 11.60, 15.14, 20.96,  8.840, NaN,  NaN,  NaN,  NaN),
+  "newlyrented" = c(0.999,  0.291,  0.55, 0.58, 0.53, 0.76, 0.319,  4.029, 1.2,  NaN,   NaN)
+)
+dfRentDE
+# gross rents
+avggross <- dfRentDE$avgrent + dfRentDE$addcosts
+upgross <- dfRentDE$uperrent + dfRentDE$addcosts
+lowgross <- dfRentDE$lowerrent + dfRentDE$addcosts
+avggross
+lowgross
+upgross
+newavggross <- dfRentDE$newlyrented * avggross
+dfRentDE <- mutate(dfRentDE, avgGrossRent = avgrent + addcosts, upperGrossRent = upperrent + addcosts, lowestGrossRent = lowestrent + addcosts)
+dfRentDE
+
+### Calculations for A-city type
+# an A-city's share of new rented office space
+idx <- seq(from = 1, to = 7, by = 1)
+dfRentDE <- mutate(dfRentDE, shareNewly = newlyrented/sum(newlyrented[idx],na.rm=TRUE))
+# A-cities's average gross rent
+SumavgGrossRentACities <- sum(dfRentDE$avgGrossRent[idx] * dfRentDE$shareNewly[idx],na.rm=TRUE) 
+
+# Calculate truncated normal for A-cities
+lower1 <- min(dfRentDE$lowestGrossRent[idx],na.rm=TRUE)
+lowerA <- lower1
+upper1 <- max(dfRentDE$upperGrossRent[idx],na.rm=TRUE)
+mean1 <- SumavgGrossRentACities
+# lower1 determines the 2.5% percentile(1.96); 
+up1 = mean1 + (mean1-lower1) 
+sd1 <- (lower1-mean1)/qnorm(0.025)
+sd1
+# 2. 10000 random draws for share of A-city type
+numberA <- round(numberrandom * shareNewlyRentedACities, digits=0)
+#checkno <- numberrandom - (numberA + numberB + numberC + numberD)
+#### random numbers and plots for A city
+set.seed(423)
+upper1
+parArentDE <- rtruncnorm(numberA, a = lower1, b=upper1, mean = mean1, sd =sd1)
+## sequence of values between lower and upper bounds
+xgx <- seq(from=lower1, to=upper1, by=0.1)
+#xgx
+## vector of values of the heigth of the probability distribution for each value of x 
+ygx=dtruncnorm(xgx, a=lower1, b=upper1,mean=mean1,sd=sd1)
+#ygx
+## plot density
+plot(xgx, ygx, type = "l", xlab ="ArentDE - rentDE A-cities",ylab = "", 
+     main="Truncated Normal Density of parArentADE")
+# plot histogram
+hist(parArentDE, main="", xlab="rentDE A-cities - random numbers from a 
+     truncated normal")
+
+### Calculations for B-city type
+
+# Calculate truncated normal for B-cities
+lower1 <- min(lowerA-0.50,na.rm=TRUE)
+upper1 <- max(dfRentDE$upperGrossRent[9],na.rm=TRUE)
+mean1 <- 1/2 * (upper1 + lower1)
+# lower1 determines the 2.5% percentile of a normal distribution 
+sd1 <- (lower1-mean1)/qnorm(0.025)
+sd1
+# 2. 10000 random draws for share of B-city type
+numberB <- round(numberrandom * shareNewlyRentedBCities, digits=0)
+#### random numbers and plots for B cities
+set.seed(123)
+parBrentDE <- rtruncnorm(numberB, a = lower1, b=upper1, mean = mean1, sd =sd1)
+## sequence of values between lower and upper bounds
+xgx <- seq(from=lower1, to=upper1, by=0.1)
+#xgx
+## vector of values of the heigth of the probability distribution for each value of x 
+ygx=dtruncnorm(xgx, a=lower1, b=upper1,mean=mean1,sd=sd1)
+#ygx
+## plot density
+plot(xgx, ygx, type = "l", xlab ="rentDE B-cities",ylab = "", 
+     main="Truncated Normal Density of parArentADE")
+# plot histogram
+hist(parBrentDE, main="", xlab="rentDE B-cities - random numbers from a truncated normal")
+
+# Calculate truncated normal for C-cities
+lower1 <- min(lowerA-1,na.rm=TRUE)
+upper1 <- max(dfRentDE$upperGrossRent[10],na.rm=TRUE)
+mean1 <- 1/2 * (upper1 + lower1)
+# lower1 determines the 2.5% percentile of a normal distribution; 
+sd1 <- (lower1-mean1)/qnorm(0.025)
+sd1
+# 2. 10000 random draws for share of C-city type
+numberC <- round(numberrandom * shareNewlyRentedCCities,digits=0)
+#### random numbers and plots for C cities
+set.seed(423)
+parCrentDE <- rtruncnorm(numberC, a = lower1, b=upper1, mean = mean1, sd =sd1)
+## sequence of values between lower and upper bounds
+xgx <- seq(from=lower1, to=upper1, by=0.1)
+#xgx
+## vector of values of the heigth of the probability distribution for each value of x 
+ygx=dtruncnorm(xgx, a=lower1, b=upper1,mean=mean1,sd=sd1)
+#ygx
+## plot density
+plot(xgx, ygx, type = "l", xlab ="rentDE C-cities",ylab = "", 
+     main="Truncated Normal Density of parArentADE")
+# plot histogram
+hist(parCrentDE, main="", xlab="rentDE C-cities - random numbers from a truncated normal")
+
+# Calculate truncated normal for D-cities
+lower1 <- min(lowerA-1.5,na.rm=TRUE)
+lower1
+upper1 <- max(dfRentDE$upperGrossRent[11],na.rm=TRUE)
+mean1 <- 1/2 * (upper1 + lower1)
+# lower1 determines the 2.5% percentile of a normal distribution; 
+sd1 <- (lower1-mean1)/qnorm(0.025)
+sd1
+# 2. 10000 random draws for share of D-city type
+numberD <- numberrandom - numberA - numberB - numberC
+#### random numbers and plots for D cities
+set.seed(423)
+parDrentDE <- rtruncnorm(numberD, a = lower1, b=upper1, mean = mean1, sd =sd1)
+## sequence of values between lower and upper bounds
+xgx <- seq(from=lower1, to=upper1, by=0.1)
+#xgx
+## vector of values of the heigth of the probability distribution for each value of x 
+ygx=dtruncnorm(xgx, a=lower1, b=upper1,mean=mean1,sd=sd1)
+#ygx
+## plot density
+plot(xgx, ygx, type = "l", xlab ="rentDE D-cities",ylab = "", 
+     main="Truncated Normal Density of parArentADE")
+# plot histogram
+hist(parDrentDE, main="", xlab="rentDE D-cities - random numbers from a truncated normal")
+
+### 
+parrentDE <- c(parArentDE,parBrentDE,parCrentDE,parDrentDE)
+hist(parrentDE, breaks=60, main="Frequency office rents DE", xlab=" rent DE - random numbers", ylab ="")
+png("imgrentDE.png")
+hist(parrentDE, breaks=60, main="Frequency office rents DE", xlab=" rent DE - random numbers", ylab ="")
+summary(parrentDE)
+# random draws from parrentde
+set.seed(423)
+parRentDE <- sample(parrentDE)
+mean2 <- mean(parRentDE)
+mean2
+```
+
+
+
+### 4.1.2 U.S. (rmonthUS)
+
+\begin{table}[htbp]
+  \centering
+  \footnotesize
+  \begin{tabular}{r|r|l|l|c|c|c|c} 
+  \hline \hline
+  Rank      & Rank     &      &          & max gross cost$^{\text{a}}$ & 
+  net rent$^{\text{b}}$ & avg.rent A$^{\text{d}}$ & avg.rent 2020$^{\text{e}}$ \\
+  world & national & City & District            & USD/sqft p.a.  &  USD/sqft p.a. 
+  &  USD/sqft p.a. & USD/sqft p.a.\\
+  \hline
+  4 & 1 & New York        & Midtown Manhattan       & 212$^{\text{b}}$ 
+  & 170$^{\text{c}}$ & 85$^{\text{f}}$ & 83.82$^{\text{f}}$ \\
+  7 & 2 & New York        & Midtown South Manh.\ & 182$^{\text{b}}$ 
+  & 152$^{\text{c}}$ & 95$^{\text{f}}$ & 88.47$^{\text{f}}$ \\
+  11 & 3 & San Francisco  & Silicon Valley          & 162$^{\text{b}}$ 
+  & 135$^{\text{c}}$ & 69.95         & 85.87$^{\text{g}}$\\
+  13 & 4 & San Francisco  & city                    & 118$^{\text{b}}$ 
+  & 85$^{\text{c}}$  & 104.79        & 85.87$^{\text{g}}$\\
+  17 & 5 & Boston         & Cambridge               & 103$^{\text{b}}$ 
+  & 85$^{\text{c}}$  &               & \\ 
+  18 & 6 & New York       & Downtown Manhattan      & 107$^{\text{b}}$ 
+  & 87$^{\text{c}}$  & 68$^{\text{f}}$ & 64.64$^{\text{f}}$\\
+  20 & 7 & Los Angeles    & Westside                & 104$^{\text{b}}$ 
+  & 86$^{\text{c}}$  & 39.82         & \\
+  17 & 8 & Boston         & city                    & 100$^{\text{b}}$ 
+  & 78$^{\text{c}}$  & 71.20         & 44.06$^{\text{g}}$ \\
+  22 & 9 & Washington D.C.& Downtown                & 88$^{\text{b}}$ 
+  & 65$^{\text{c}}$  & 60.39         & 59.42$^{\text{g}}$\\
+  & 10 & Austin           & city                    & 87$^{\text{b}}$  
+  & 60$^{\text{c}}$  & 52.85         & 49.93 \\
+  42 & 11 & Seattle       & Downtown                & 66.47          & 51.50          
+  &               & 45.59$^{\text{g}}$ \\
+  45 & 12 & Houston       & Downtown                & 64.60          &                
+  & 45.67         & 31.97$^{\text{g}}$\\
+  46 & 13 & Seattle       & Suburban                & 64.20          & 43.16          
+  &               & 45.59$^{\text{g}}$\\
+  & 14 & Chicago          & Downtown                & 76$^{\text{b}}$  & 50$^{\text{c}}$  
+  & 48.81         & 43.99 \\
+  & 15 & Houston          & Suburban                & 56.88          & 32$^{\text{c}}$  
+  &32.66          & 31.97$^{\text{g}}$\\
+  & 16 & Dallas           & Downtown                & 56.25          & 42$^{\text{b}}$  
+  & 29.21         & 31.08$^{\text{g}}$ \\
+  & 17 & Los Angeles      & Downtown                & 69$^{\text{b}}$  & 48$^{\text{c}}$  
+  & 46.69         & \\
+  
+  & 18 & Denver           & Downtown                & 51.50          & 40$^{\text{c}}$  
+  &               & 31.87$^{\text{g}}$\\
+  & 19 & Atlanta          & Buckhead and Midtown    & 50.14          &                
+  & 37.60         & 29.35$^{\text{g}}$ \\
+  & 20 & Boston           & Suburans                & 48.06          &                
+  & 31.49         & 44.06$^{\text{g}}$\\
+  & 21 & Dallas           & Suburban                & 45.93          &                
+  & 31.83         & 31.08$^{\text{g}}$\\
+  & 22 & Auckland         & city                    & 40$^{\text{b}}$  & 30$^{\text{c}}$  
+  &               & \\
+  & 23 & Atlanta          & Suburban                & 37.76          &                
+  & 29.41         & 29.35$^{\text{g}}$\\
+  & 24 & Chicago          & Suburban                & 30.50          &                
+  &               & 25.93 \\
+  & 25 & Denver           & Suburban                & 30.25          &                
+  & 28.56         & 31.87$^{\text{g}}$\\
+  \hline 
+  \multicolumn{8}{l}{\footnotesize \parbox{13cm}{Occupancy cost include service charges, 
+  taxes. 
+  They are standardized on a net internal area basis. Prime office occupance costs are 
+  costs for the highest-quality office space in a prime location}}\\
+  \multicolumn{8}{l}{\footnotesize \parbox{13cm}{Top 1: Hongkong 208.67, Top 2: 
+  London (West End) 222.70, Top 50 Frankfurt: 61.77} }\\
+  \multicolumn{8}{l}{\footnotesize $^{\text{a}}$ Source: \citet{CBRE2019}} \\
+    \multicolumn{8}{l}{\footnotesize Source: $^{\text{b}}$ \citet{JLL2019}} \\
+    \multicolumn{8}{l}{\footnotesize Source: $^{\text{c}}$ Approximation from \citet{JLL2019}} \\
+        \multicolumn{8}{l}{\footnotesize Source: $^{\text{d}}$ \citet{Colliers2019}}\\
+         \multicolumn{8}{l}{\footnotesize Source: $^{\text{d}}$ \citet{JLL2020a}} \\
+         \multicolumn{8}{l}{\footnotesize Source: $^{\text{f}}$ \citet{JLL2020b} in 2020} \\
+         \multicolumn{8}{l}{\footnotesize Source: $^{\text{g}}$ average over the whole city}
+  \end{tabular}
+  \caption{Prime Office Occupancy Cost - top U.S. City Districts} \label{tab: grossrentUS}
+\end{table}
+
+```{r, rentUS} 
+# sqm per sqft
+
+dfRentUS = data.frame(
+  "RankNational" = c(1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25),
+  "City" = c("New York Mid Manh", "New York Mid South Manh", "San Francisco Silicon Valley", 
+             "San Francisco city", "Boston Cambridge", "New York Downtown Manh", 
+             "Los Angeles Westside", "Boston city", "Washington D.C. Downtown", 
+             "Austin city", "Seattle Downtown", "Houston Downtown", "Seattle Suburban", 
+             "Chicago Downtown", "Houston Suburban", "Dallas Downtown", 
+             "Los Angeles Downtown", "Denver Downtown", "Atlanta Buckhead & Midtown", 
+             "Boston Suburban", "Dallas Suburban", "Auckland city", "Atlanta Suburban", 
+             "Chicago Suburban", "Denver Suburban"),
+  "occupancycost" = c(212, 182, 162, 118, 103, 107, 104, 100,  88, 87, 66.47, 64.60, 
+                      64.20, 76, 56.88, 56.25, 69,
+  51.50, 50.14, 48.06, 45.93, 40, 37.76, 30.50, 30.25))
+  "net rent" = c(170, 152, 135, 85, 85, 87, 86, 78, 65, 60, NaN, NaN, NaN, 50, 32, 
+                 42, 48, 40, NaN, NaN, NaN, 30, NaN, NaN, NaN)
+dfRentUS
+# rents in EUR per sqm per month
+dfRentUS <- mutate(dfRentUS, maxGrossRent = occupancycost * sqmsqft * EURDollar/12)
+dfRentUS$maxGrossRent
+lower1 <- min(dfRentUS$maxGrossRent)
+upper1 <- max(dfRentUS$maxGrossRent)
+med1 <- median(dfRentUS$maxGrossRent)
+med1
+mean1 <- 1/2 * (upper1 + lower1)
+lower1
+upper1
+mean1
+# lower1 determines the 2.5% percentile of a normal distribution; 
+sd1 <- (lower1-mean1)/qnorm(0.025)
+sd1
+# 2. 10000 random draws for share of D-city type
+#### random numbers and plots for D cities
+set.seed(423)
+parRentUS <- rtruncnorm(numberrandom, a = lower1, b=upper1, mean = mean1, sd =sd1)
+meanparRentUS <- mean(parRentUS)
+meanparRentUS
+## sequence f values between lower and upper bounds
+xgx <- seq(from=lower1, to=upper1, by=0.1)
+#xgx
+## vector of values of the heigth of the probability distribution for each value of x 
+ygx=dtruncnorm(xgx, a=lower1, b=upper1,mean=mean1,sd=sd1)
+#ygx
+## plot density
+plot(xgx, ygx, type = "l", xlab ="rentUS",ylab = "", 
+     main="Truncated Normal Density of parRentUS")
+# plot histogram
+hist(parRentUS, breaks=60, main="", xlab="rentUS - random numbers from a truncated normal")
+png("imgrentUS.png")
+hist(parRentUS, breaks=60, main="", xlab="rentUS - random numbers from a truncated normal")
+
+
+
+```
+
+
+
+## 4.2 sqmemployee (sqm of office space per employee)
+
+### 4.2.1 Germany (sqmemployeeDE)
+
+\citet{HengerEtAl2017}
+
+\begin{table}[htb]
+  \centering
+  \begin{tabular}{c|c|c|c|c}
+    \multicolumn{5}{c}{$m^2$ Nutzfläche je Beschäftigte$^{\text{a}}$} \\
+    \hline
+    Branchen  & \multicolumn{4}{c}{Kreistyp$^{\text{b}}$}\\
+             & A-Städte & B-Städte & sonst. Großstädte & Durchschnitt \\
+             \hline
+    Banken/Finanz  & 31 & 24,6 & 23 & 24,1 \\
+    Bau,Immobilien & 32,3 & 25,6 & 24 & 25,1 \\
+    EDV & 28,4 & 22,5 & 21,1 & 22 \\
+    Industrie & 25,3 & 20,1 & 18,8 & 19,7 \\
+    Transport & 26,2 & 20,8 & 19,5 & 20,4 \\
+    Dienstleistung & 33,5 & 26,6 & 24,9 & 26 \\
+    Handel & 34,9 & 27,7 & 25,9 & 27,1 \\
+    \hline
+    Durchschnitt & 30,9 & 24,5 & 22,9 & 24 \\
+    \hline
+    \multicolumn{5}{l}{$^{\text{a}}$ see \cite{HengerEtAl2017}} \\
+    \multicolumn{5}{l}{$^{\text{b}}$ \parbox{13cm}{\footnotesize A-Städte 
+    (wichtigste Bürostandorte): Berlin, Düsseldorf, Frankfurt (Main), Hamburg, 
+    Köln, München, Stuttgart. B-Städte: u.a. Bonn, Dortmund, Dresden, Essen, 
+    Hannover, Leipzig, Mannheim, Wiesbaden. sonst. Großstädte: weitere kreisfreie 
+    Städte > 100000 Einwohner}}
+  \end{tabular}
+  \caption{Office space per employee in German cities} \label{tab: office space DE}
+\end{table}
+
+
+```{r, sqmemployeeDE}
+# random numbers for office space per employee
+set.seed(555)
+sqmemployeeDE <- runif(numberrandom, min = 18.8, max = 34.9)
+mean1 <- mean(sqmemployeeDE)
+mean1
+
+```
+
+
+
+### 4.2.2 U.S. (sqmemployeeUS)
+
+
+U.S.\ (statista} 138 square ft. (12.8 square meter) in the Americas in 2017, 
+in 2012 it was about 176 square feet according to CoreNetGlobal 
+\citep[cited in][]{Cipolla2020}. CoreNet Global expected decline to 100 square ft 
+\citep[cited in][]{PRNewswire2012}
+
+The real eastate firm Austin Tenant Advisors guess that 150-175 square ft. per 
+employee is US average \citep{Nathan2020} .
+
+100-300 sqf (9.29-27.87 sqm) suggested by Housont Installation \citep{Twardowski2019} 
+
+Trend in coworking - strong increase. 
+
+We use a uniform distribution over 12-15 sqm
+
+```{r, sqmemployeeUS}
+# random numbers for office space per employee
+set.seed(555)
+sqmemployeeUS <- runif(numberrandom, min = 9.29, max = 27.87)
+mean1 <- mean(sqmemployeeUS)
+mean1
+```
+
+
+# 5. Other Components: Delay Costs
+
+
+
+* delayA (delay costs with contract A)
+
+
+
+# 6. Non-data driven Parameters
+
+* delayB (delay costs with contract B - not from data)
+* beta (productivity of in-vehicle work - not from data)
+* s_drive (share of driving during in-vehicle work - not from data)
+
+
+
+```{r, FinalDataPrintToGDXfileDE}
+
+#  Generate GDX-File only from data calculated in R
+idvar <- c(1:10000)
+# matrix of random data - database of random data
+numb = 10000;
+idlist <- list(name='id_r',uels=list(idvar),ts='MC run',type='set') 
+mc_gkm <- list(name='mc_gkm',val=as.array(pargkmDE), uels=list(idvar),dim=1,
+               form='full',ts='gross monetary avg. travel costs employee [EUR:km]',
+            type='parameter',domains='id_r') 
+mc_gs <- list(name='mc_gs',val=as.array(pargsDE), uels=list(idvar),dim=1,
+              form='full',ts='gross monetary avg. travel costs employee [EUR:km]',
+               type='parameter',domains='id_r') 
+mc_gd <- list(name='mc_gd',val=as.array(pargdDE), uels=list(idvar),dim=1,
+              form='full',ts='gross monetary avg. travel costs employee [EUR:km]',
+               type='parameter',domains='id_r') 
+mc_xbar <- list(name='mc_xbar',val=as.array(distanceDE), uels=list(idvar),dim=1,
+                form='full',ts='gross monetary avg. travel costs employee [EUR:km]',
+               type='parameter',domains='id_r') 
+mc_parambDE <- list(name='mc_parambDE',val=as.array(parambDE), uels=list(idvar),dim=1,
+                    form='full',ts='parameter to deterine tkm [h:km]',  
+                    type='parameter',domains='id_r') 
+mc_sqmemployee <- list(name='mc_sqmemployee',val=as.array(sqmemployeeDE), uels=list(idvar),dim=1,form='full',ts='gross monetary avg. travel costs employee [EUR:km]',
+               type='parameter',domains='id_r') 
+mc_rmonth <- list(name='mc_rmonth',val=as.array(parRentDE), uels=list(idvar),dim=1,
+                  form='full',ts='gross monetary avg. travel costs employee [EUR:km]',
+               type='parameter',domains='id_r') 
+mc_avgproduct <- list(name='mc_avgproduct',val=as.array(avgprodDE), uels=list(idvar),
+                      dim=1,form='full',ts='gross monetary avg. travel costs employee [EUR:km]',
+               type='parameter',domains='id_r') 
+mc_wage <- list(name='mc_wage',val=as.array(wageDE), uels=list(idvar),dim=1,form='full',
+                ts='gross monetary avg. travel costs employee [EUR:km]',
+               type='parameter',domains='id_r') 
+wgdx.lst('MC_paramDE',list(idlist,mc_gkm,mc_gs,mc_gd,mc_xbar,mc_parambDE,
+                           mc_sqmemployee,mc_rmonth,mc_avgproduct,mc_wage))
+gdxInfo('MC_paramDE',dump=FALSE,returnList=TRUE, returnDF=TRUE)
+
+# means
+id_l = 1
+idmvar = id_l
+am_wage <- list(name='am_wage',val=as.array(mean(wageDE)), uels=list(idmvar),
+                dim=1,form='full',ts='mean gross monetary avg. travel costs employee [EUR:km]',
+               type='parameter',domains='id_l') 
+mwage <- mean(wageDE)*8
+
+```
+
+
+```{r, Descriptives}
+idvar <- c(1:10000)
+# matrix of random data - database of random data
+#  Generate GDX-File only from data calculated in R
+idvar <- c(1:10000)
+# matrix of random data - database of random data
+numb = 10000;
+idlist <- list(name='id_r',uels=list(idvar),ts='MC run',type='set') 
+mc_gkmUS <- list(name='mc_gkmUS',val=as.array(pargkmUS), uels=list(idvar),dim=1,
+                 form='full',ts='gross monetary avg. travel costs employee [EUR:km]',
+            type='parameter',domains='id_r') 
+mc_gsUS <- list(name='mc_gsUS',val=as.array(pargsUS), uels=list(idvar),dim=1,
+                form='full',ts='gross monetary avg. travel costs employee [EUR:km]',
+               type='parameter',domains='id_r') 
+mc_gdUS <- list(name='mc_gdUS',val=as.array(pargdUS), uels=list(idvar),dim=1,
+                form='full',ts='gross monetary avg. travel costs employee [EUR:km]',
+               type='parameter',domains='id_r') 
+mc_xbarUS <- list(name='mc_xbarUS',val=as.array(distanceUS), uels=list(idvar),dim=1,
+                  form='full',ts='gross monetary avg. travel costs employee [EUR:km]',
+               type='parameter',domains='id_r') 
+mc_parambUS <- list(name='mc_parambUS',val=as.array(timekmUS), uels=list(idvar),dim=1,
+                    form='full',ts='parameter to determine tkm [h/km]',
+               type='parameter',domains='id_r') 
+mc_sqmemployeeUS <- list(name='mc_sqmemployeeUS',val=as.array(sqmemployeeUS), uels=list(idvar),dim=1,form='full',ts='gross monetary avg. travel costs employee [EUR:km]',
+               type='parameter',domains='id_r') 
+mc_rmonthUS <- list(name='mc_rmonthUS',val=as.array(parRentUS), uels=list(idvar),dim=1,
+                    form='full',ts='gross monetary avg. travel costs employee [EUR:km]',
+               type='parameter',domains='id_r') 
+mc_avgproductUS <- list(name='mc_avgproductUS',val=as.array(avgprodUS), uels=list(idvar),dim=1,form='full',ts='gross monetary avg. travel costs employee [EUR:km]',
+               type='parameter',domains='id_r') 
+mc_wageUS <- list(name='mc_wageUS',val=as.array(wageUS), uels=list(idvar),dim=1,
+                  form='full',ts='gross monetary avg. travel costs employee [EUR:km]',
+               type='parameter',domains='id_r') 
+wgdx.lst('MC_paramUS',list(idlist,mc_gkmUS,mc_gsUS,mc_gdUS,mc_xbarUS,mc_parambUS,
+                           mc_sqmemployeeUS,mc_rmonthUS,mc_avgproductUS,mc_wageUS))
+gdxInfo('MC_paramUS',dump=FALSE,returnList=FALSE, returnDF=TRUE)
+
+mwage <- mean(wageUS)*8
+
+```
+
+
+```{r, FinalPrintToFile_US, warning=FALSE, results='asis'}
+# summary statistics
+# generate database
+paramDE.frame <- data.frame(pargkmDE,pargsDE,pargdDE,distanceDE,
+                           sqmemployeeDE,parRentDE,wageDE,timekmDE,avgprodDE)
+paramUS.frame <- data.frame(pargkmUS,pargsUS,pargdUS,distanceUS,
+                           sqmemployeeUS,parRentUS,wageUS,timekmUS,avgprodUS)
+
+library(stargazer)
+correlation.matrix <- cor(paramDE.frame[,c('pargkmDE','pargsDE','pargdDE','distanceDE',
+                           'sqmemployeeDE','parRentDE','wageDE','timekmDE')])
+stargazer(correlation.matrix, title="Correlation Matrix DE",type ="latex", no.space = TRUE, 
+          column.sep.width = "3pt", font.size = "scriptsize")
+correlation.matrix <- cor(paramUS.frame[,c('pargkmUS','pargsUS','pargdUS','distanceUS',
+                           'sqmemployeeUS','parRentUS','wageUS','timekmUS')])
+stargazer(correlation.matrix, title="Correlation Matrix US",type ="latex", no.space = TRUE, 
+          column.sep.width = "3pt", font.size = "scriptsize")
+
+```
+
+\thebibliography{99999999999999999999999999999999999999999999}
+
+\bibitem[Association(2020)]{AAA2020} A.A.A., 2020. Your Driving Costs 2020.
+
+\bibitem[ADAC(2020a)]{ADAC2020a} ADAC (2020a) from "Kostenvergleich e-Fahrzeuge 
++ Plug-in Hybride gegen Benziner und Diesel", 2020. 
+\href{https://assets.adac.de/image/upload/v1594909696/ADAC-eV/KOR/Text/PDF/E-AutosVergleich_joxjsi.pdf}{
+\color{blue}ADAC2020a\color{black}}
+
+\bibitem[ADAC(2020b)]{ADAC2020b} ADAC, 2020b. Berechnungsgrundlagen für die standardisierte 
+Autokostenberechnung.
+
+\bibitem[BNP(2021)]{BNP2021} BNP Paribas Real Estate, 2021. Property Report: 
+Büromarkt Deutschland
+\href{https://www.realestate.bnpparibas.de/marktberichte/bueromarkt/deutschland-property-report-2020/die-deutschen-buerostandorte-im-ueberblick}{\underline{$\text{BNP2021}$}}
+
+\bibitem[BTS(2017)]{BTS2017} Bureau of Transportation Statistiscs (BTS), 2017. 
+National Household Travel Survey `Stretch Commute' Quick Facts. \href{https://www.bts.gov/statistical-products/surveys/national-household-travel-survey-stretch-commute-quick-facts}{$\underline{\text{Quick Facts 2017}}$} accessed, 23.03.2021
+
+\bibitem[BTS(2003)]{BTSt2003} Bureau of Transportation Statistics (BTS), 2003. 
+Quick Facts. \href{https://www.bts.gov/bts/sites/rita.dot.gov.bts/files/publications/omnistats/volume_03_issue_04/pdf/entire.pdf}{$\underline{\text{Quick Facts 2003}}$} accessed, 23.03.2021
+
+\bibitem[Burd et al.(2021)]{BurdEtAl2021} Burd, C., Burrows, M., McKenzie, B., 2021. 
+Travel Time to Work in the United States: 2019. American Community Survey Reports, U.S.\ Census Bureau.
+
+
+
+\bibitem[Cipolla(2020)]{Cipolla2020} Cipolla J, 2020. How much office space per 
+employee do you need?%\href{https://www.squarefoot.com/blog/office-space-per-employee}{$\underline{\text{Cipolla 2020}}$}
+
+\bibitem[Compostella et al.(2020)]{CompostellaEtAl2020} Compostella, J., Fulton, L.M., 
+De Kleine, R., Kim, H.C., Wallington, T.J., 2020. Near- (2020) and long-term (2030/2035) 
+costs of automated, electrified, and shared mobility in the United States. 
+Transport Policy 85, 54--66.
+
+\bibitem[Colliers(2019)]{Colliers2019} Colliers, 2019. Q4 2019 Office Market Outlook. 
+U.S. Research Outlook.
+
+\bibitem[Dauth and Haller(2018)]{DauthHaller2018} Dauth W, Haller P, 2018. 
+Berufliches Pendeln zwischen Wohn- und Arbeitsort: Klarer Trend zu längeren 
+Pendeldistanzen. iab (10/2018), 13.
+
+\bibitem[Deloitte(2019)]{Deloitte2019} Deloitte, 2019. Urbane Mobilität und 
+autonomes Fahren im Jahr 2035 -- Welche Veränderungen durch Robotaxis auf 
+Automobilhersteller, Städte, und Politik zurollen.
+
+\bibitem[DeStatis(2021)]{DeStatis2021} DeStatis, 2021. Earnings. Minimum wages. 
+\href{https://www.destatis.de/EN/Themes/Labour/Earnings/Minimum-Wages/_node.html}{DeStatis minimum wage} 
+accessed 24.03.2021
+
+\bibitem[DeStatis(2018)]{DeStatis2018} DeStatis, 2018. Verdienststrukturerhebung -- 
+Ergebnisse für Deutschland. Fachserie 16, Heft 1 2018. \href{https://www.destatis.de/DE/Themen/Arbeit/Verdienste/Verdienste-Verdienstunterschiede/Publikationen/Downloads-Verdienste-und-Verdienstunterschiede/verdienststrukturerhebung-heft-1-2162001189004.html}
+{Destatis FS16.1 2018} accessed 24.03.2021
+
+\bibitem[DeStatis(2017)]{DeStatis2017} DeStatis, 2017. Verdienste auf einen Blick. 
+\href{https://www.destatis.de/DE/Themen/Arbeit/Verdienste/Verdienste-Verdienstunterschiede/Publikationen/Downloads-Verdienste-und-Verdienstunterschiede/broschuere-verdienste-blick-0160013179004.pdf?__blob=publicationFile}{DeStatis Verdienste} accessed 24.03.2021
+
+\bibitem[Dingel and Neiman(2020)]{DingelNeiman2020} Dingel, J.I., Neiman, B., 2021. 
+How many jobs can be done from home? NBER working paper 26948. 
+
+\bibitem[Feld et al.(2020]{FeldEtAl2020})] Feld LP, Schulten A, Simons H, Wandzik C, 
+Gerling M, 2020. Frühjahrsgutachten der Immobilienwirtschaft 2020 des Rates der 
+Immobilienweisen. Im Auftrag von ZIA, Berlin. \href{https://zia-cloud.de/data/public/d5a531}
+{ZIA2020} accessed 24.03.2021
+
+\bibitem[Gerike et al.(2020)]{GerikeEtAl2020} Gerike, R., Hubrich, S., Ließke, F., 
+Wittig, S., Wittwer, R., 2020. Tabellenbericht zum Forschungsprojket `Mobilität in 
+Städten -- SRV 2018' in Berlin. TU Dresden. \href{https://tu-dresden.de/srv} 
+accessed 31.05.2021
+
+\bibitem[Geotab (2018)]{Geotab2018} Geotab, 2018. Gridlocked cities: traffic 
+patterns revealed across 20 major U.S. cities. \href{https://www.geotab.com/press-release/traffic-congestion-patterns/}{GEOTAB 2018} 
+accessed 31.05.2021
+
+\bibitem[Gimenéz-Nadal et al.(2020)]{GimenezNadal2020} Giménez-Nadal J.I., Molina J.A., 
+Velilla J., 2020. Trends in commuting time of European workers: A cross-country analysis. 
+IZA Working Paper DP No. 12916.
+
+\bibitem[Gould(2020)]{Gould2020} Gould, E., 2020. State of Working America Wages 2019. 
+A story of slow, uneven, and unequal wage growth over the last 40years. Economic Policy 
+Institute, Washington D.C.
+\href{https://epi.org/183498}{https://epi.org/183498} accessed 24.03.2021
+
+\bibitem[Henger et al.(2017)]{HengerEtAl2017} Henger R, Scheunemann H, Barthauer M, 
+Giesemann C, Hude M, Seipelt B, Toschka A, 2017. Büroimmobilien: Energetischer 
+Zustand und Anreize zur Steigerung der Energieeffizienz, Tech. Rep., Deutsche Energie-Agentur GmbH.
+
+\bibitem[IEA(2020)]{IEA2020} IEA, 2020. Key World Energy Statistics 2020, p. 81.
+
+\bibitem[JLL(2021)]{JLL2021} JLL, 2021. Büromarktüberblick Big 7/4.Quartal 2020. \href{https://www.jll.de/content/dam/jll-com/documents/pdf/research/emea/germany/de/Bueromarktueberblick-JLL-Deutschland.pdf}{$\underline{\text{JLL 2021}}$} accessed 24.03.2021
+
+
+\bibitem[JLL(2020a)]{JLL2020a} JLL, 2020a. Office Outlook
+\href{https://www.us.jll.com/content/dam/jll-com/documents/pdf/research/Q4-2020-US-Office-Outlook.pdf}
+{$\underline{\text{JLL 2020a}}$} accessed 24.03.2021
+
+\bibitem[JLL(2020b)]{JLL2020b} JLL, 2020a. New York Q4 2019, Quarterly Office Outlook
+\href{https://www.us.jll.com/content/dam/jll-com/documents/pdf/research/jll-us-new-york-office-outlook-q4-2019.pdf}{$\underline{\text{JLL 2020b}}$} accessed 24.03.2021
+
+
+\bibitem[JLL(2019)]{JLL2019} JLL, 2019. Global Premium Office Rent Tracker. 
+\href{https://www.us.jll.com/content/dam/jll-com/documents/pdf/research/jll-global-premium-office-rent-tracker-q4-2019.pdf}{$\underline{\text{JLL 2019}}$} accessed 24.03.2021
+
+\bibitem[JLL(2018)]{JLL2018} JLL, 2018. Büro-Nebenkosten leicht rückläufig -- OSCAR Analyse von JLL. \href{https://www.jll.de/de/presse/jll-oscar-analyse-buero-nebenkosten-leicht-ruecklaeufig}
+{$\underline{\text{JLL 2018}}$} accessed 24.03.2021
+
+\bibitem[KraftStg(2002)]{KraftStg2002} KraftStG 2002. Einzelnorm (n.d.).
+\href{https://www.gesetze-im-internet.de/kraftstg/__9.html}{$\underline{\text{KraftStg 2002}}$} 
+accessed 24.03.2021
+
+\bibitem[Maye(2019)]{Maye2019} Maye, A., 2019. No-vacation nation, revised. CEPR
+
+\bibitem[Nathan(2020)]{Nathan2020} Nathan, 2020. What is the average square footage of 
+office space per person. 
+(\href{https://www.austintenantadvisors.com/blog/what-is-the-average-square-footage-of-office-space-per-person/}
+{$\underline{\text{Nathan 2020}}$}) accessed 25.05.2021
+
+\bibitem[OECD(2021)]{OECD2021} OECD.Stat 
+(\href{https://stats.oecd.org/Index.aspx?DataSetCode=LFS_D}) 
+accessed 22.03.2021
+
+\bibitem[OECD(2020)]{OECD2020} OECD, 2020. Taxing Wages 2020. 
+
+\bibitem[OECD(2018)]{OECD2018} OECD, 2018. OECD Employment Outlook 2018, OECD.
+\href{https://www.oecd-ilibrary.org/employment/oecd-employment-outlook-2018_empl_outlook-2018-en}
+{$\underline{\text{OECD 2018}}$} accessed 24.03.2021
+
+\bibitem[PR Newswire(2012)]{PRNewswire2012} PR Newswire, 2012. Office space per 
+worker will drop to 100 square feet of below for many companies within five years, 
+according to new research from CoreNet Global.
+(cited in:  
+\href{https://www.prnewswire.com/news-releases/office-space-per-worker-will-drop-to-100-square-feet-or-below-for-many-companies-within-five-years-according-to-new-research-from-corenet-global-140702483.html}
+{$\underline{\text{rnewswire 2012}}$}: news from CoreNet Global) accessed 25.05.2021
+
+\bibitem[Rietveld et al.(1999)]{Rietveld1999} Rietveld, P., Zwart, B., van Wee, B., 
+van den Hoorn, T., 1999. On the relationship between travel time and travel distance 
+of commuters. Annals of Regional Science 33, 269--287.
+
+\bibitem[Statista(2021a)]{Statista2021a} Statista (2021a) O average, how long is 
+your daily commute to work/school/university (one way?) \href{https://www.statista.com/forecasts/998812/duration-of-daily-commute-in-germany}
+{$\underline{\text{Statista 2021a}}$} accessed 24.03.2021 
+
+\bibitem[Statista(2021b)]{Statista2021b} Statista (2021b) Durchschnittsmiete in 
+den Top 5-Bürozentren in Deutschland im 4.Quartal der Jahre 2014 und 2015. 
+\href{https://de.statista.com/statistik/daten/studie/77146/umfrage/durchschnittliche-miete-fuer-bueroflaechen-in-staedten-2008-und-2009/}{$\underline{\text{Statista 2021b}}$} accessed 24.03.2021 
+
+\bibitem[Statista(2021c)]{Statista2021c} Statista (2021c) Mietpreise für Büroflächen 
+in Frankfurt am Main bis 2020
+\href{https://de.statista.com/statistik/daten/studie/261013/umfrage/entwicklung-der-mietpreise-fuer-bueroflaechen-in-frankfurt-am-main/}{$\underline{\text{Statista 2021c}}$} accessed 25.03.2021
+
+\bibitem[Statista(2021c)]{Statista2021d} Statista (2021d) Entwicklung der 
+Durchschnittsmieten für Büroflächen in München von 2004 bis 2019
+\href{https://de.statista.com/statistik/daten/studie/209635/umfrage/entwicklung-der-mietpreise-fuer-bueroflaechen-in-muenchen/}{$\underline{\text{Statista 2021d}}$} accessed 25.03.2021
+
+\bibitem[Statista(2021e)]{Statista2021e} Statista (2021e) Entwicklung der 
+Durchschnittsmieten für Büroflächen in Berlin 
+\href{https://de.statista.com/statistik/daten/studie/177523/umfrage/entwicklung-der-mietpreise-von-bueroflaechen-in-berlin-seit-2003/}{$\underline{\text{Statista 2021e}}$} accessed 25.03.2021
+
+\bibitem[Statista(2021f)]{Statista2021f} Statista (2021f) Entwicklung der 
+Spitzenmiete für Büroflächen in Berlin von 2008 bis 2020
+\href{https://de.statista.com/statistik/daten/studie/183180/umfrage/entwicklung-der-spitzenmiete-im-bueromarkt-in-berlin-seit-2008/}{$\underline{\text{Statista 2021f}}$} accessed 25.03.2021
+
+
+\bibitem[Statista(2021g)]{Statista2021g} Statista (2021g) Entwicklung der Mietpreise 
+für Büroflächen in Hamburg von 2003 bis 2020
+\href{https://de.statista.com/statistik/daten/studie/177383/umfrage/entwicklung-der-mietpreise-von-bueroflaechen-in-hamburg-seit-2003/}{$\underline{\text{Statista 2021g}}$} accessed 25.03.2021
+
+\bibitem[Statista(2021h)]{Statista2021h} Statista (2021h) Entwicklung der 
+Durchschnittsmiete für Büroflächen in Düsseldorf bis 2020
+\href{https://de.statista.com/statistik/daten/studie/625728/umfrage/mietpreis-fuer-bueroflaechen-in-duesseldorf/}{$\underline{\text{Statista 2021h}}$} accessed 25.03.2021
+
+\bibitem[Statista(2021i)]{Statista2021i} Statista (2021i) Entwicklung der 
+Spitzenmiete für Büroflächen in Düsseldorf von 2009 bis zum 1. Halbjahr 2020
+\href{https://de.statista.com/statistik/daten/studie/368473/umfrage/spitzenmiete-fuer-bueroflaechen-in-duesseldorf/}{$\underline{\text{Statista 2021i}}$} accessed 25.03.2021
+
+\bibitem[Statista(2021j)]{Statista2021j} Statista (2021j) Entwicklung der 
+Mietpreise für Büroflächen in Köln von 2003 bis 2020
+\href{https://de.statista.com/statistik/daten/studie/177552/umfrage/entwicklung-der-mietpreise-von-bueroflaechen-in-koeln-seit-2003/}{$\underline{\text{Statista 2021j}}$} accessed 25.03.2021
+
+\bibitem[Statista(2021k)]{Statista2021k} Statista (2021k) Entwicklung der 
+Durchschnittsmiete für Büroflächen in Stuttgart von 2001 bis 2019
+\href{https://de.statista.com/statistik/daten/studie/586252/umfrage/mietpreise-fuer-bueroflaechen-in-stuttgart/}{$\underline{\text{Statista 2021k}}$} accessed 25.03.2021
+
+\bibitem[Statista(2021l)]{Statista2021l} Statista (2021l) Entwicklung der 
+Spitzenmiete für Büroflächen in Stuttgart von 2001 bis 2019
+\href{https://de.statista.com/statistik/daten/studie/583031/umfrage/spitzenmiete-fuer-bueroimmobilien-in-stuttgart/}{$\underline{\text{Statista 2021l}}$} accessed 25.03.2021
+
+\bibitem[Statista(2021m)]{Statista2021m} Statista (2021m) Büroflächen -- 
+Bestand nach Großestädten in Deutschland 2019/2020
+\href{https://de.statista.com/statistik/daten/studie/244653/umfrage/bueroflaechengroesse-nach-deutschen-grossstaedten/}{$\underline{\text{Statista2021m.com}}$} accessed 25.03.2021
+
+\bibitem[Statista(2020)]{Statista2020} Statistia (2019) Durchschnittliche 
+Geschwindkeiten im Automobilverkehr in ausgewählten deutschen Städten im Jahre 2018. \href{https://de.statista.com/statistik/daten/studie/994676/umfrage/innerstaedtische-durchschnittsgeschwindigkeit-im-autoverkehr-in-deutschen-staedten/}{$\underline{\text{Statista 2019}}$} accessed 27.05.2021
+
+\bibitem[StromStG(2020)]{StromStG} StromStG 2020.
+\href{https://www.gesetze-im-internet.de/stromstg/index.html}
+{$\underline{\text{StromStG 2020}}$} accessed 24.03.2021
+
+\bibitem[Twardowski(2019)]{Twardowski2019} Twardowski T, 2019. How much office 
+space do you need? 
+\href{https://www.houstoninstallation.com/blog/how-much-office-space-do-i-need}
+{$\underline{\text{Twardowski 2019}}$} accessed: 25.05.2021.
+
+\bibitem[US BoL(2021a)]{USBoL2021a} U.S.\ Bureau of Labor Statistics, BoL, 2020.  
+\href{https://data.bls.gov}{$\underline{\text{BoL 2020}}$} accessed: 22.03.2021.
+
+\bibitem[US BoL(2021b)]{USBoL2021b} U.S.\ Bureau of Labor Statistics, BoL, 2020.  
+
+\bibitem[US DoL(2021)]{USDoL2021} U.S.\ Department of Labor (US DoL), 2021.
+\href{https://www.dol.gov/general/topic/wages/minimumwage}{$\underline{\text{DoL}}$} 
+accessed 24.03.2021
+
+\bibitem[US Department Transport(2020)]{USDepTr2020} U.S.\ Department of Transportation, 
+BoTS, 2020. Transportation Statistics Annual Report 2020. 
+\href{https://rosap.ntl.bts.gov/view/dot/53936}{$\underline{\text{U.S.\ BoTS 2020}}$} 
+accessed: 20.03.2021.
+
+
+
+\bibitem[CBRE(2019)]{CBRE2019} CBRE, 2019. 2019 Global prime office occupancy costs. 
+and \href{http://cbre.vo.llnwd.net/grgservices/secure/2019%20CBRE%20POOC_Q9bx.pdf?e=1617101862&h=d62ccb3196eeda4e0b1adeb756c3d94d}{\color{blue}CBRE 2019} accessed, 30.03.2021
+
+
+
