@@ -1,0 +1,26 @@
+% latex table generated in R 4.3.0 by xtable 1.8-4 package
+% Tue May 16 12:30:32 2023
+\begin{table}[htb]
+\centering
+\begingroup\footnotesize
+\begin{tabular}{rllllllll}
+  \hline
+ & id\_r & id\_c & xbar & e\_alpha & e\_v & e\_vc & e\_vo & e\_xB \\ 
+  \hline
+1 & 1 & US & 2 &  &  &  &  &  \\ 
+  2 & 2 & US & 17 & 0.038 & 0.036 & Inf & 0 & -0.13 \\ 
+  3 & 3 & US & 32 & 0.23 & 0.12 & 0.57 & 0 &  \\ 
+  4 & 4 & US & 47 & 0.42 & 0.2 & 0.71 & 0 &  \\ 
+  5 & 5 & US & 62 & 0.46 & 0.16 & 0.46 & 0 &  \\ 
+  6 & 6 & US & 77 & 0.33 & 0.17 & 0.44 & 0 &  \\ 
+  7 & 7 & US & 92 & 0 & 0.2 & 0.49 & 0 &  \\ 
+  8 & 8 & US & 107 & 0 & 0.23 & 0.53 & 0 &  \\ 
+  9 & 9 & US & 122 & 0 & 0.26 & 0.57 & 0 &  \\ 
+  10 & 10 & US & 137 & 0 & 0.28 & 0.6 & 1.6e-15 &  \\ 
+  11 &  & US & xbar & 0.038 & 0.2 & 0.57 & 0 & -0.13 \\ 
+   \hline
+\end{tabular}
+\endgroup
+\caption{Parameter  xbar US} 
+\label{tab: xbar }
+\end{table}

@@ -1,0 +1,26 @@
+% latex table generated in R 4.3.0 by xtable 1.8-4 package
+% Tue May 16 12:30:30 2023
+\begin{table}[htb]
+\centering
+\begingroup\footnotesize
+\begin{tabular}{rllllrrrl}
+  \hline
+ & id\_r & id\_c & dB & e\_alpha & e\_v & e\_vc & e\_vo & e\_xB \\ 
+  \hline
+1 & 1 & DE & 1 &  &  &  &  &  \\ 
+  2 & 2 & DE & 4 & -0.0071 & 0.00 & 0.00 & 0.00 &  \\ 
+  3 & 3 & DE & 7 & -0.029 & 0.00 & 0.00 & 0.00 &  \\ 
+  4 & 4 & DE & 10 & -0.052 & 0.00 & 0.00 & 0.00 &  \\ 
+  5 & 5 & DE & 13 & -0.076 & 0.00 & 0.00 & 0.00 &  \\ 
+  6 & 6 & DE & 16 & -0.1 & 0.00 & 0.00 & 0.00 &  \\ 
+  7 & 7 & DE & 19 & -0.13 & 0.00 & 0.00 & 0.00 &  \\ 
+  8 & 8 & DE & 22 & -0.16 & 0.00 & 0.00 & 0.00 &  \\ 
+  9 & 9 & DE & 25 & -0.18 & 0.00 & 0.00 & 0.00 &  \\ 
+  10 & 10 & DE & 28 & -0.22 & 0.00 & 0.00 & 0.00 &  \\ 
+  11 &  & DE & dB & -0.1 & 0.00 & 0.00 & 0.00 &  \\ 
+   \hline
+\end{tabular}
+\endgroup
+\caption{Parameter  dB DE} 
+\label{tab: dB }
+\end{table}

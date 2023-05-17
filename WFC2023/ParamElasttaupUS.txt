@@ -1,0 +1,26 @@
+% latex table generated in R 4.3.0 by xtable 1.8-4 package
+% Tue May 16 12:30:38 2023
+\begin{table}[htb]
+\centering
+\begingroup\footnotesize
+\begin{tabular}{rllllrrrl}
+  \hline
+ & id\_r & id\_c & taup & e\_alpha & e\_v & e\_vc & e\_vo & e\_xB \\ 
+  \hline
+1 & 1 & US & 0 &  &  &  &  &  \\ 
+  2 & 2 & US & 0.5 & 0 & 0.00 & 0.00 & 0.00 &  \\ 
+  3 & 3 & US & 1 & -0.0058 & 0.00 & 0.00 & 0.00 &  \\ 
+  4 & 4 & US & 1.5 & -0.012 & 0.00 & 0.00 & 0.00 &  \\ 
+  5 & 5 & US & 2 & -0.018 & 0.00 & 0.00 & 0.00 &  \\ 
+  6 & 6 & US & 2.5 & -0.024 & 0.00 & 0.00 & 0.00 &  \\ 
+  7 & 7 & US & 3 & -0.03 & 0.00 & 0.00 & 0.00 &  \\ 
+  8 & 8 & US & 3.5 & -0.036 & 0.00 & 0.00 & 0.00 &  \\ 
+  9 & 9 & US & 4 & -0.042 & 0.00 & 0.00 & 0.00 &  \\ 
+  10 & 10 & US & 4.5 & -0.049 & 0.00 & 0.00 & 0.00 &  \\ 
+  11 &  & US & taup & -0.024 & 0.00 & 0.00 & 0.00 &  \\ 
+   \hline
+\end{tabular}
+\endgroup
+\caption{Parameter  taup US} 
+\label{tab: taup }
+\end{table}

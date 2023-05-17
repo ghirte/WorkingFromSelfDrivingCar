@@ -1,0 +1,26 @@
+% latex table generated in R 4.3.0 by xtable 1.8-4 package
+% Tue May 16 12:30:31 2023
+\begin{table}[htb]
+\centering
+\begingroup\footnotesize
+\begin{tabular}{rllllrrrl}
+  \hline
+ & id\_r & id\_c & dA & e\_alpha & e\_v & e\_vc & e\_vo & e\_xB \\ 
+  \hline
+1 & 1 & DE & 1 &  &  &  &  &  \\ 
+  2 & 2 & DE & 2 & 0.0079 & 0.00 & 0.00 & 0.00 &  \\ 
+  3 & 3 & DE & 3 & 0.016 & 0.00 & 0.00 & 0.00 &  \\ 
+  4 & 4 & DE & 4 & 0.023 & 0.00 & 0.00 & 0.00 &  \\ 
+  5 & 5 & DE & 5 & 0.031 & 0.00 & 0.00 & 0.00 &  \\ 
+  6 & 6 & DE & 6 & 0.038 & 0.00 & 0.00 & 0.00 &  \\ 
+  7 & 7 & DE & 7 & 0.046 & 0.00 & 0.00 & 0.00 &  \\ 
+  8 & 8 & DE & 8 & 0.053 & 0.00 & 0.00 & 0.00 &  \\ 
+  9 & 9 & DE & 9 & 0.06 & 0.00 & 0.00 & 0.00 &  \\ 
+  10 & 10 & DE & 10 & 0.067 & 0.00 & 0.00 & 0.00 &  \\ 
+  11 &  & DE & dA & 0.038 & 0.00 & 0.00 & 0.00 &  \\ 
+   \hline
+\end{tabular}
+\endgroup
+\caption{Parameter  dA DE} 
+\label{tab: dA }
+\end{table}

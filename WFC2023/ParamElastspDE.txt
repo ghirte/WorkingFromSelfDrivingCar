@@ -1,0 +1,26 @@
+% latex table generated in R 4.3.0 by xtable 1.8-4 package
+% Tue May 16 12:30:31 2023
+\begin{table}[htb]
+\centering
+\begingroup\footnotesize
+\begin{tabular}{rllllrrrl}
+  \hline
+ & id\_r & id\_c & sp & e\_alpha & e\_v & e\_vc & e\_vo & e\_xB \\ 
+  \hline
+1 & 1 & DE & 0 &  &  &  &  &  \\ 
+  2 & 2 & DE & 0.05 & 0 & 0.00 & 0.00 & 0.00 &  \\ 
+  3 & 3 & DE & 0.1 & 0.0013 & 0.00 & 0.00 & 0.00 &  \\ 
+  4 & 4 & DE & 0.15 & 0.0025 & 0.00 & 0.00 & 0.00 &  \\ 
+  5 & 5 & DE & 0.2 & 0.0037 & 0.00 & 0.00 & 0.00 &  \\ 
+  6 & 6 & DE & 0.25 & 0.005 & 0.00 & 0.00 & 0.00 &  \\ 
+  7 & 7 & DE & 0.3 & 0.0062 & 0.00 & 0.00 & 0.00 &  \\ 
+  8 & 8 & DE & 0.35 & 0.0075 & 0.00 & 0.00 & 0.00 &  \\ 
+  9 & 9 & DE & 0.4 & 0.0087 & 0.00 & 0.00 & 0.00 &  \\ 
+  10 & 10 & DE & 0.45 & 0.0099 & 0.00 & 0.00 & 0.00 &  \\ 
+  11 &  & DE & sp & 0.005 & 0.00 & 0.00 & 0.00 &  \\ 
+   \hline
+\end{tabular}
+\endgroup
+\caption{Parameter  sp DE} 
+\label{tab: sp }
+\end{table}

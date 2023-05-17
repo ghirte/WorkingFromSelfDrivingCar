@@ -1,0 +1,26 @@
+% latex table generated in R 4.3.0 by xtable 1.8-4 package
+% Tue May 16 12:30:29 2023
+\begin{table}[htb]
+\centering
+\begingroup\footnotesize
+\begin{tabular}{rlllllrll}
+  \hline
+ & id\_r & id\_c & sqmemployee & e\_alpha & e\_v & e\_vc & e\_vo & e\_xB \\ 
+  \hline
+1 & 1 & DE & 18.8 &  &  &  &  &  \\ 
+  2 & 2 & DE & 20.4 & 0.069 & 1.7e-15 & 0.00 & 0 &  \\ 
+  3 & 3 & DE & 22 & 0.074 & -1.9e-15 & 0.00 & 0 &  \\ 
+  4 & 4 & DE & 23.6 & 0.08 & 2e-15 & 0.00 & 0 &  \\ 
+  5 & 5 & DE & 25.2 & 0.085 & 0 & 0.00 & 2.8e-15 &  \\ 
+  6 & 6 & DE & 26.8 & 0.09 & 0 & 0.00 & 0 &  \\ 
+  7 & 7 & DE & 28.4 & 0.095 & 0 & 0.00 & 0 &  \\ 
+  8 & 8 & DE & 30 & 0.1 & 0 & 0.00 & 0 &  \\ 
+  9 & 9 & DE & 31.6 & 0.11 & 0 & 0.00 & 0 &  \\ 
+  10 & 10 & DE & 33.2 & 0.11 & 0 & 0.00 & 0 &  \\ 
+  11 &  & DE & sqmemployee & 0.09 & 0 & 0.00 & 0 &  \\ 
+   \hline
+\end{tabular}
+\endgroup
+\caption{Parameter  sqmemployee DE} 
+\label{tab: sqmemployee }
+\end{table}

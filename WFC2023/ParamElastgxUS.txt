@@ -1,0 +1,26 @@
+% latex table generated in R 4.3.0 by xtable 1.8-4 package
+% Tue May 16 12:30:34 2023
+\begin{table}[htb]
+\centering
+\begingroup\footnotesize
+\begin{tabular}{rllllrrrl}
+  \hline
+ & id\_r & id\_c & gx & e\_alpha & e\_v & e\_vc & e\_vo & e\_xB \\ 
+  \hline
+1 & 1 & US & 0.0157 &  &  &  &  &  \\ 
+  2 & 2 & US & 0.0212 & -0.011 & 0.00 & 0.00 & 0.00 &  \\ 
+  3 & 3 & US & 0.0267 & -0.015 & 0.00 & 0.00 & 0.00 &  \\ 
+  4 & 4 & US & 0.0322 & -0.018 & 0.00 & 0.00 & 0.00 &  \\ 
+  5 & 5 & US & 0.0377 & -0.022 & 0.00 & 0.00 & 0.00 &  \\ 
+  6 & 6 & US & 0.0432 & -0.026 & 0.00 & 0.00 & 0.00 &  \\ 
+  7 & 7 & US & 0.0487 & -0.03 & 0.00 & 0.00 & 0.00 &  \\ 
+  8 & 8 & US & 0.0542 & -0.034 & 0.00 & 0.00 & 0.00 &  \\ 
+  9 & 9 & US & 0.0597 & -0.038 & 0.00 & 0.00 & 0.00 &  \\ 
+  10 & 10 & US & 0.0652 & -0.042 & 0.00 & 0.00 & 0.00 &  \\ 
+  11 &  & US & gx & -0.026 & 0.00 & 0.00 & 0.00 &  \\ 
+   \hline
+\end{tabular}
+\endgroup
+\caption{Parameter  gx US} 
+\label{tab: gx }
+\end{table}

@@ -1,0 +1,26 @@
+% latex table generated in R 4.3.0 by xtable 1.8-4 package
+% Tue May 16 12:30:37 2023
+\begin{table}[htb]
+\centering
+\begingroup\footnotesize
+\begin{tabular}{rllllrrrl}
+  \hline
+ & id\_r & id\_c & rho & e\_alpha & e\_v & e\_vc & e\_vo & e\_xB \\ 
+  \hline
+1 & 1 & US & 0 &  &  &  &  &  \\ 
+  2 & 2 & US & 0.1 & 0 & 0.00 & 0.00 & 0.00 &  \\ 
+  3 & 3 & US & 0.2 & -0.0077 & 0.00 & 0.00 & 0.00 &  \\ 
+  4 & 4 & US & 0.3 & -0.016 & 0.00 & 0.00 & 0.00 &  \\ 
+  5 & 5 & US & 0.4 & -0.023 & 0.00 & 0.00 & 0.00 &  \\ 
+  6 & 6 & US & 0.5 & -0.032 & 0.00 & 0.00 & 0.00 &  \\ 
+  7 & 7 & US & 0.6 & -0.04 & 0.00 & 0.00 & 0.00 &  \\ 
+  8 & 8 & US & 0.7 & -0.048 & 0.00 & 0.00 & 0.00 &  \\ 
+  9 & 9 & US & 0.8 & -0.057 & 0.00 & 0.00 & 0.00 &  \\ 
+  10 & 10 & US & 0.9 & -0.065 & 0.00 & 0.00 & 0.00 &  \\ 
+  11 &  & US & rho & -0.032 & 0.00 & 0.00 & 0.00 &  \\ 
+   \hline
+\end{tabular}
+\endgroup
+\caption{Parameter  rho US} 
+\label{tab: rho }
+\end{table}

@@ -1,0 +1,26 @@
+% latex table generated in R 4.3.0 by xtable 1.8-4 package
+% Tue May 16 12:30:30 2023
+\begin{table}[htb]
+\centering
+\begingroup\footnotesize
+\begin{tabular}{rllllrrrl}
+  \hline
+ & id\_r & id\_c & rmonth & e\_alpha & e\_v & e\_vc & e\_vo & e\_xB \\ 
+  \hline
+1 & 1 & US & 22.79 &  &  &  &  &  \\ 
+  2 & 2 & US & 36.49 & 0.12 & 0.00 & 0.00 & 0.00 &  \\ 
+  3 & 3 & US & 50.19 & 0.18 & 0.00 & 0.00 & 0.00 &  \\ 
+  4 & 4 & US & 63.89 & 0.23 & 0.00 & 0.00 & 0.00 &  \\ 
+  5 & 5 & US & 77.59 & 0.27 & 0.00 & 0.00 & 0.00 &  \\ 
+  6 & 6 & US & 91.29 & 0.31 & 0.00 & 0.00 & 0.00 &  \\ 
+  7 & 7 & US & 104.99 & 0.35 & 0.00 & 0.00 & 0.00 &  \\ 
+  8 & 8 & US & 118.69 & 0.38 & 0.00 & 0.00 & 0.00 &  \\ 
+  9 & 9 & US & 132.39 & 0.41 & 0.00 & 0.00 & 0.00 &  \\ 
+  10 & 10 & US & 146.09 & 0.44 & 0.00 & 0.00 & 0.00 &  \\ 
+  11 &  & US & rmonth & 0.31 & 0.00 & 0.00 & 0.00 &  \\ 
+   \hline
+\end{tabular}
+\endgroup
+\caption{Parameter  rmonth US} 
+\label{tab: rmonth }
+\end{table}

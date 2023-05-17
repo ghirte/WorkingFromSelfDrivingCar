@@ -1,0 +1,26 @@
+% latex table generated in R 4.3.0 by xtable 1.8-4 package
+% Tue May 16 12:30:38 2023
+\begin{table}[htb]
+\centering
+\begingroup\footnotesize
+\begin{tabular}{rlllllrll}
+  \hline
+ & id\_r & id\_c & taud & e\_alpha & e\_v & e\_vc & e\_vo & e\_xB \\ 
+  \hline
+1 & 1 & DE & 0 &  &  &  &  &  \\ 
+  2 & 2 & DE & 0.1 & 0 & 0 & 0.00 & 0 &  \\ 
+  3 & 3 & DE & 0.2 & -0.0098 & -1.5e-16 & 0.00 & -1.9e-16 &  \\ 
+  4 & 4 & DE & 0.3 & -0.02 & 2.9e-16 & 0.00 & 0 &  \\ 
+  5 & 5 & DE & 0.4 & -0.03 & -4.4e-16 & 0.00 & 0 &  \\ 
+  6 & 6 & DE & 0.5 & -0.04 & 5.8e-16 & 0.00 & 0 &  \\ 
+  7 & 7 & DE & 0.6 & -0.051 & -7.3e-16 & 0.00 & 0 &  \\ 
+  8 & 8 & DE & 0.7 & -0.062 & 8.7e-16 & 0.00 & 0 &  \\ 
+  9 & 9 & DE & 0.8 & -0.073 & -1e-15 & 0.00 & 0 &  \\ 
+  10 & 10 & DE & 0.9 & -0.084 & 1.2e-15 & 0.00 & 0 &  \\ 
+  11 &  & DE & taud & -0.04 & 0 & 0.00 & 0 &  \\ 
+   \hline
+\end{tabular}
+\endgroup
+\caption{Parameter  taud DE} 
+\label{tab: taud }
+\end{table}
